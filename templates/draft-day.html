@@ -1,0 +1,115 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Discount Double Check · Draft-day worksheet</title>
+<style><!--STYLE-->
+.plan-row{display:grid;grid-template-columns:48px minmax(140px,1fr) 76px 56px;gap:7px;align-items:center;margin:8px 0}.plan-row input{width:100%;min-width:0;padding:7px}.plan-row input[type=checkbox]{width:22px}.plan-row strong{font-size:13px}.plan-row.owned{background:#e8f1e4;border-radius:6px}.plan-row input:disabled{opacity:.75}.metrics{grid-template-columns:repeat(3,1fr)}.status{min-height:26px}.positive{color:#176344}.negative{color:#922d20}#comparison{font-size:20px;font-weight:700}.compact{font-size:13px}input[type=file]{max-width:100%}@media(max-width:850px){.two{grid-template-columns:1fr}.plan-row{grid-template-columns:40px minmax(125px,1fr) 65px 42px}.metrics{grid-template-columns:1fr 1fr}.metric strong{font-size:23px}}
+</style>
+<header><p class="eyebrow">Discount Double Check · 2026</p><h1>Pay for the roster you want.</h1><p>Test a premium bid beside Draft Sharks. Keep the rest of your budget visible.</p></header>
+<main>
+<div class="notice" id="readiness">Rehearsal: the named players and future prices are editable scenarios. Final rules, keeper availability, and the actual auction board still need confirmation.</div>
+<section class="panel" aria-label="Bid decision">
+<div class="row"><label>Budget $ <input id="budget" type="number" min="14" step="1" value="200"></label><label>Test this Plan A slot <select id="target"></select></label><label>Bid $ <input id="bid" type="number" min="1" step="1"></label><label>Other future prices <select id="stress"><option value="1">As entered</option><option value="1.1">10% higher</option><option value="1.2">20% higher</option><option value="1.3">30% higher</option></select></label></div>
+<div class="metrics" id="metrics"></div><p id="comparison" aria-live="polite"></p><p id="decision-note" class="compact"></p>
+<details><summary>Compare a Draft Sharks quote</summary><label>Current DS auction value $ <input id="quote" type="number" min="0" step="1" placeholder="Optional"></label><p class="compact">Enter the quote for this nominee from your actual Draft Sharks auction board. It is a manual reference, never multiplied by the future-price scenario. Quotes clear when your plan changes.</p><p id="quote-note"></p></details>
+</section>
+<section class="panel"><h2>Your two routes</h2><p>Plan A starts with an expensive RB. Plan B spends less at RB and upgrades WR/TE. Change either route to your targets. These are examples, not recommended acquisitions.</p><p class="compact">Prices start from a separate Draft Sharks rehearsal board’s <strong>Market $ + $1</strong>, except the $78 RB test and your $1 keeper. They are not league clearing-price forecasts or personalized DS auction values. Bench, K, and DEF costs count; their projections do not.</p>
+<div class="row"><button id="record">Record Plan A target as bought</button><button id="undo" disabled>Undo last change</button><button id="backup">Download backup</button><label>Restore backup <input id="restore" type="file" accept="application/json,.json"></label></div><p id="storage" class="status compact" role="status"></p>
+<div class="two"><section><h3>Plan A · Buy the premium RB</h3><p id="a-summary"></p><div id="plan-a"></div><p id="a-errors" class="error"></p></section><section><h3>Plan B · Buy alternatives</h3><p id="b-summary"></p><div id="plan-b"></div><p id="b-errors" class="error"></p></section></div>
+<p class="compact">“Own” copies the player and actual price into both plans. Uncheck it before correcting a shared slot. Each name must match a suggestion and be eligible for its slot.</p>
+</section>
+<section class="panel"><h2>Keep the alternatives available</h2><div class="row"><label>Sold or kept by someone else <input id="unavailable-name" list="all-players" placeholder="Player name"></label><button id="unavailable-add">Mark unavailable</button></div><div id="unavailable-list"></div><p class="compact">Track the room in Draft Sharks. Mark a player here when a sale or keeper removes one of your alternatives.</p><label class="check"><input type="checkbox" id="confirmed">I checked the budget, 14 paid roster places, my shared purchases/keepers, and availability of every player in these plans.</label></section>
+<details class="panel"><summary>What this calculation proves</summary><p>The budget ceiling is your budget minus all other players in Plan A. It is an affordability limit for that exact plan, not an optimal bid or a promise the remaining players will be available at those prices.</p><p>The projection comparison sums DS Proj for QB, RB×2, WR×2, TE, and FLEX. It does not model weekly lineup choices, bye coverage, injuries beyond the source forecast, waivers, opponents’ reactions, or win probability. No premium multiplier comes from historical outcomes. K/DEF projections are excluded because complete scoring parity is unverified.</p><p>The 10–30% stress applies to all future Plan B purchases and all future Plan A purchases except the current nominee. Owned prices stay fixed. Market reference prices and dynamic provider quotes are separate inputs.</p><p id="provenance"></p><p>Use Draft Sharks for the draft room and current player news. This worksheet has no live feed. Recheck and replace a route when its players sell; your backup stays on this computer.</p></details>
+<footer>Keep your Draft Sharks board open in another tab · <a href="auction-replay.html">Historical research</a></footer>
+</main>
+<script id="payload" type="application/json"><!--PAYLOAD--></script>
+<script id="calculation">
+const SLOTS=['QB','RB1','RB2','WR1','WR2','TE','FLEX','K','DEF','BN1','BN2','BN3','BN4','BN5'];
+function eligible(pos,index){return index>=9|| (index===6?['RB','WR','TE'].includes(pos):pos===SLOTS[index].replace(/[12]$/,''));}
+function syncOwned(s){s.plans.forEach(p=>p.forEach((r,i)=>{r.owned=s.owned[i];if(r.owned)Object.assign(r,s.plans[0][i]);}));}
+function validState(s,source){
+  return !!s && s.version===1 && s.source===source && Number.isInteger(s.budget)&&s.budget>=SLOTS.length&&s.budget<=10000 && Number.isInteger(s.target)&&s.target>=0&&s.target<SLOTS.length && [1,1.1,1.2,1.3].includes(s.stress) && typeof s.confirmed==='boolean' && typeof s.quote==='string' && s.quote.length<30 && Array.isArray(s.unavailable)&&s.unavailable.length<=1500&&s.unavailable.every(n=>typeof n==='string'&&n.length<200) && Array.isArray(s.owned)&&s.owned.length===SLOTS.length&&s.owned.every(v=>typeof v==='boolean') && Array.isArray(s.plans)&&s.plans.length===2&&s.plans.every(p=>Array.isArray(p)&&p.length===SLOTS.length&&p.every(r=>r&&typeof r.name==='string'&&r.name.length<200&&(r.cost===null||Number.isFinite(r.cost))&&typeof r.owned==='boolean'));
+}
+function readState(candidate,source){
+  if(!validState(candidate,source))throw Error('Backup does not match this projection snapshot or has invalid fields.');
+  const next=structuredClone(candidate);syncOwned(next);next.confirmed=false;next.quote='';return next;
+}
+function analyze(rows,pool,budget,unavailable,target,stress){
+  const seen=new Set(),errors=[];let total=0,points=0,spent=0,own=0,targetCost=0;
+  rows.forEach((r,i)=>{
+    const p=Object.hasOwn(pool,r.name)?pool[r.name]:null;
+    if(!p)errors.push(`${SLOTS[i]}: choose a listed player.`);
+    else if(!eligible(p.pos,i))errors.push(`${SLOTS[i]}: ${r.name} is not eligible.`);
+    if(r.name&&seen.has(r.name))errors.push(`Duplicate player: ${r.name}.`);seen.add(r.name);
+    if(unavailable.includes(r.name))errors.push(`${r.name} is unavailable.`);
+    if(!Number.isInteger(r.cost)||r.cost<(r.owned?0:1)||r.cost>10000)errors.push(`${SLOTS[i]}: enter a valid whole-dollar cost (up to $10,000).`);
+    const cost=Number.isInteger(r.cost)&&r.cost>=0?r.cost:0;
+    const modeled=r.owned||i===target?cost:Math.ceil(cost*stress-1e-9);total+=modeled;if(i===target)targetCost=modeled;
+    if(r.owned){spent+=cost;own++;}if(i<7&&p)points+=p.points;
+  });
+  if(!Number.isInteger(budget)||budget<SLOTS.length)errors.push('Enter a valid budget.');
+  return {total,points,errors,spent,open:SLOTS.length-own,legalMax:own===SLOTS.length?0:Math.max(0,budget-spent-(SLOTS.length-own-1)),ceiling:target===null||rows[target].owned?null:budget-(total-targetCost)};
+}
+</script>
+<script>
+'use strict';
+const DATA=JSON.parse(document.getElementById('payload').textContent),pool=DATA.players,$=id=>document.getElementById(id),KEY='ddc-draft-day-2026';
+let state=structuredClone(DATA.initial),previous=null,storageBlocked=false;
+try{const raw=localStorage.getItem(KEY);if(raw)state=readState(JSON.parse(raw),DATA.source);}
+catch(e){storageBlocked=true;$('storage').textContent='Saved data was preserved, but could not load. Restore a valid backup. Automatic saving is paused.';}
+function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
+function money(n){return Number.isFinite(n)?'$'+n:'n/a';}
+function save(){if(storageBlocked)return;try{localStorage.setItem(KEY,JSON.stringify(state));$('storage').textContent='Saved on this browser · '+new Date().toLocaleTimeString();}catch(e){$('storage').textContent='Could not save in this browser. Download a backup now.';}}
+function before(){previous=structuredClone(state);state.confirmed=false;state.quote='';}
+function apply(){syncOwned(state);save();render();}
+function buildRows(){
+  const lists=SLOTS.map((slot,i)=>i>=9?'all':slot.replace(/[12]$/,''));
+  ['plan-a','plan-b'].forEach((id,plan)=>{
+    const box=$(id);box.replaceChildren();
+    SLOTS.forEach((slot,i)=>{
+      const row=el('div',undefined,'plan-row'),title=el('strong',slot),name=el('input'),cost=el('input'),owned=el('input');
+      name.id=`name-${plan}-${i}`;name.setAttribute('list','players-'+lists[i]);name.setAttribute('aria-label',`Plan ${plan?'B':'A'} ${slot} player`);
+      cost.type='number';cost.step='1';cost.min='0';cost.id=`cost-${plan}-${i}`;cost.setAttribute('aria-label',`Plan ${plan?'B':'A'} ${slot} cost`);
+      owned.type='checkbox';owned.id=`owned-${plan}-${i}`;owned.setAttribute('aria-label',`Plan ${plan?'B':'A'} ${slot} owned`);owned.title='Own: shared in both plans';
+      name.oninput=()=>{before();const r=state.plans[plan][i];r.name=name.value;if(Object.hasOwn(pool,r.name)&&pool[r.name].market!==null&&!state.owned[i])r.cost=pool[r.name].market+1;apply();};
+      cost.oninput=()=>{before();state.plans[plan][i].cost=cost.value===''?null:Number(cost.value);apply();};
+      owned.onchange=()=>{before();state.owned[i]=owned.checked;apply();};
+      row.append(title,name,cost,owned);box.append(row);
+    });
+  });
+  [...new Set(lists)].forEach(key=>{const i=lists.indexOf(key),list=el('datalist');list.id='players-'+key;Object.entries(pool).filter(([,p])=>eligible(p.pos,i)).forEach(([name])=>{const o=el('option');o.value=name;list.append(o);});document.body.append(list);});
+  $('unavailable-name').setAttribute('list','players-all');
+}
+function render(){
+  $('budget').value=state.budget;$('target').value=state.target;$('stress').value=state.stress;
+  state.plans.forEach((plan,j)=>plan.forEach((r,i)=>{const name=$(`name-${j}-${i}`),cost=$(`cost-${j}-${i}`),own=$(`owned-${j}-${i}`);name.value=r.name;cost.value=r.cost??'';own.checked=state.owned[i];own.disabled=j===1;name.disabled=cost.disabled=state.owned[i];name.parentElement.classList.toggle('owned',state.owned[i]);}));
+  $('unavailable-list').replaceChildren();state.unavailable.forEach(name=>{const b=el('button',name+' · available again');b.onclick=()=>{before();state.unavailable=state.unavailable.filter(n=>n!==name);apply();};$('unavailable-list').append(b);});
+  update();
+}
+function update(){
+  const a=analyze(state.plans[0],pool,state.budget,state.unavailable,state.target,state.stress),b=analyze(state.plans[1],pool,state.budget,state.unavailable,null,state.stress),r=state.plans[0][state.target];
+  $('bid').value=r.cost??'';$('bid').disabled=r.owned;$('undo').disabled=!previous;$('quote').value=state.quote;$('confirmed').checked=state.confirmed;
+  $('record').disabled=r.owned||a.errors.length>0||r.cost>a.legalMax;
+  $('metrics').replaceChildren();[['Plan A budget ceiling',a.errors.length||a.ceiling===null?'n/a':money(a.ceiling)],['Plan A money left',a.errors.length?'n/a':money(state.budget-a.total)],['Plan B money left',b.errors.length?'n/a':money(state.budget-b.total)]].forEach(([label,v])=>{const n=el('div',undefined,'metric');n.append(el('strong',v),el('span',label));$('metrics').append(n);});
+  $('a-summary').textContent=`Plan cost ${money(a.total)} · Own ${money(a.spent)} · ${a.open} places to fill`;$('b-summary').textContent=`Plan cost ${money(b.total)} · Own ${money(b.spent)} · ${b.open} places to fill`;
+  $('a-errors').textContent=a.errors.join(' ');$('b-errors').textContent=b.errors.join(' ');
+  const complete=!a.errors.length&&!b.errors.length,affordable=a.total<=state.budget&&b.total<=state.budget;
+  $('comparison').textContent=!complete?'Resolve the player or price errors to compare.':!affordable?'A plan exceeds your budget. Change a target or its price.':`Starting-offense projection: A ${a.points.toFixed(1)} · B ${b.points.toFixed(1)} · A ${(a.points-b.points)>=0?'+':''}${(a.points-b.points).toFixed(1)} points`;
+  $('comparison').className=complete&&affordable?'positive':'negative';
+  $('decision-note').textContent=`Testing ${r.name||'an unselected player'} at ${money(r.cost)}. ${a.ceiling===null?'This slot is already owned.':`Your Plan A ceiling reserves every other planned purchase. The auction’s legal maximum is ${money(a.legalMax)}.`} Projections are scenario totals, not predicted wins.`;
+  $('quote-note').textContent=state.quote===''?'No current provider quote recorded.':`Manually entered DS quote: ${money(Number(state.quote))}. Tested bid difference: ${money(r.cost-Number(state.quote))}.`;
+  $('readiness').textContent=state.confirmed?'You marked rules, shared purchases, and availability checked. Manual worksheet: recheck alternatives as the draft moves.':'Rehearsal: final rules, keeper availability, and the actual auction board still need confirmation. Forecasts and named prices are scenarios, not bid recommendations.';
+}
+SLOTS.forEach((label,i)=>{const o=el('option',label);o.value=i;$('target').append(o);});buildRows();syncOwned(state);
+$('budget').onchange=()=>{const n=Number($('budget').value);if(!Number.isInteger(n)||n<14||n>10000){$('budget').value=state.budget;return;}before();state.budget=n;apply();};
+$('target').onchange=()=>{before();state.target=Number($('target').value);apply();};
+$('bid').oninput=()=>{before();state.plans[0][state.target].cost=$('bid').value===''?null:Number($('bid').value);syncOwned(state);save();$(`cost-0-${state.target}`).value=state.plans[0][state.target].cost??'';update();};
+$('stress').onchange=()=>{before();state.stress=Number($('stress').value);apply();};
+$('confirmed').onchange=()=>{previous=structuredClone(state);state.confirmed=$('confirmed').checked;save();update();};
+$('quote').oninput=()=>{state.quote=$('quote').value;save();update();};
+$('record').onclick=()=>{before();state.owned[state.target]=true;apply();};
+$('undo').onclick=()=>{if(previous){const next=readState(previous,DATA.source);previous=null;state=next;apply();}};
+$('unavailable-add').onclick=()=>{const name=$('unavailable-name').value;if(!Object.hasOwn(pool,name)){$('storage').textContent='Choose a listed player to mark unavailable.';return;}before();if(!state.unavailable.includes(name))state.unavailable.push(name);$('unavailable-name').value='';apply();};
+$('backup').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'})),a=el('a');a.href=url;a.download='ddc-draft-day-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+$('restore').onchange=async()=>{const input=$('restore');if(input.disabled)return;input.disabled=true;try{const file=input.files[0];if(!file)return;if(file.size>1000000)throw Error('Backup is too large.');const next=readState(JSON.parse(await file.text()),DATA.source);previous=structuredClone(state);state=next;storageBlocked=false;apply();}catch(e){$('storage').textContent='Restore rejected; existing worksheet preserved. '+e.message;}finally{input.value='';input.disabled=false;}};
+$('provenance').textContent=`DS Proj: your league board export, captured ${DATA.captured}. Market $: a separate synthetic rehearsal board, reference only. Snapshot ${DATA.source.slice(0,12)}. Core offense follows the imported half-PPR settings; full scoring parity is unverified.`;
+render();
+</script></html>

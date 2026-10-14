@@ -1,0 +1,118 @@
+{
+  "reviewed_on": "2026-09-06",
+  "mode": "non-interactive",
+  "skill": "compound-engineering:ce-doc-review",
+  "skill_version": "3.24.0",
+  "document": "2026-09-06-personalized-draft-companion-feasibility.md",
+  "review_input_sha256": "15b6a3ad316dd0fc2316dffa19f21294c5b1b64db8022badbd01ff97fb8af419",
+  "document_type": "requirements",
+  "origin_path": "none",
+  "settled_ktds": "none",
+  "round": 1,
+  "reviewer_dispatch": "Generic leaf agents read full rendered skill-local persona, template, schema, and entire legacy document from local prompt files. Bounded serial dispatch after capacity rejection; no persona dropped.",
+  "coverage": [
+    {"reviewer": "coherence", "status": "completed", "independent_context": true, "findings": 0},
+    {"reviewer": "feasibility", "status": "completed", "independent_context": true, "findings": 0},
+    {"reviewer": "product-lens", "status": "completed", "independent_context": true, "findings": 0},
+    {"reviewer": "design-lens", "status": "completed", "independent_context": true, "findings": 2},
+    {"reviewer": "security-lens", "status": "completed", "independent_context": true, "findings": 0},
+    {"reviewer": "scope-guardian", "status": "completed", "independent_context": true, "findings": 0},
+    {"reviewer": "adversarial", "status": "completed", "independent_context": true, "findings": 0}
+  ],
+  "cross_model": {
+    "policy": "auto",
+    "host_harness": "codex",
+    "host_family": "codex",
+    "target": "claude",
+    "fixed_route": "claude",
+    "model_requested": "claude-opus-5",
+    "effort_requested": "high",
+    "serving_model": null,
+    "independence_verified": false,
+    "result": "Provider-capable dispatch attempted for all three judgment lenses plus whole-document sweep. Every job reported expired OAuth session and could not refresh. No usable schema artifact; no cross-model corroboration or broad-sweep coverage.",
+    "observed_error": "Failed to authenticate: OAuth session expired and could not be refreshed; terminal_reason=api_error",
+    "jobs": [
+      {"reviewer": "product-lens", "id": "20260906T074854Z-996de66f", "runner_state": "done", "fold_in": false},
+      {"reviewer": "adversarial", "id": "20260906T074854Z-654b0979", "runner_state": "done", "fold_in": false},
+      {"reviewer": "security-lens", "id": "20260906T074854Z-eec97bb8", "runner_state": "done", "fold_in": false},
+      {"reviewer": "whole-doc", "id": "20260906T074854Z-b7751132", "runner_state": "done", "fold_in": false}
+    ],
+    "runner_state_meaning": "done means the worker exited, not that a model review completed",
+    "retries_after_provider_result": 0,
+    "remediation": "If additional cross-model corroboration is desired later, refresh the Claude CLI session and rerun the same bounded review. It is not required to finish this feasibility investigation."
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "reviewer": "design-lens",
+      "title": "Settings discrepancies have no resolution flow",
+      "severity": "P1",
+      "section": "Proposed personalized experience: Before drafting",
+      "why_it_matters": "A user can reach a blocked setup state without any defined way to make the valuation actionable, so planning must guess how source conflicts are resolved and which value becomes authoritative. A field-level confirmation and correction flow would turn the stated discrepancy warning into a complete path with a clear ready state.",
+      "finding_type": "omission",
+      "autofix_class": "manual",
+      "suggested_fix": "Add a setup flow that lists each material discrepancy, lets the user confirm or correct the authoritative value and source, and shows when all ceiling-blocking fields are resolved.",
+      "confidence": 75,
+      "evidence": ["Show source and discrepancies.", "Unresolved material settings prevent actionable ceilings."],
+      "recommended_action": "Apply",
+      "route": "decision",
+      "applied": false,
+      "disposition": "Returned to caller for later planning; not treated as accepted user choice."
+    },
+    {
+      "id": "F2",
+      "reviewer": "design-lens",
+      "title": "Live controls lack accessibility requirements",
+      "severity": "P1",
+      "section": "Proposed personalized experience: Completed sales and nominations",
+      "why_it_matters": "Users who rely on a keyboard or assistive technology may be unable to enter time-sensitive sales, update prices, correct mistakes, or detect when an actionable quote changes. Explicit keyboard operation, focus behavior, and announced status updates give planning the accessibility contract needed for the live workflow.",
+      "finding_type": "omission",
+      "autofix_class": "gated_auto",
+      "suggested_fix": "Require keyboard operation for sale entry, nominee and price updates, undo, and correction; preserve predictable focus after each action; and announce reconciliation, suppression, error, and refreshed-quote status to assistive technology.",
+      "confidence": 75,
+      "evidence": ["After a completed sale: record player, winning team, and cost.", "When a player is nominated: select the player and enter current price.", "Undo/correction rebuilds state from the ledger."],
+      "recommended_action": "Apply",
+      "route": "grouped_confirmation",
+      "applied": false,
+      "disposition": "Returned unapplied in non-interactive mode; no user question during overnight investigation."
+    }
+  ],
+  "synthesis": {
+    "valid_findings": 2,
+    "malformed_findings": 0,
+    "merged_findings": 0,
+    "anchor_promotions": 0,
+    "review_fixes_applied": 0,
+    "proposed_fixes": 1,
+    "decisions": 1,
+    "fyi_observations": 0,
+    "dropped": 0,
+    "restated": 0,
+    "rationale": "Both findings remain at confidence 75. The settings-resolution proposal is a genuine UX choice. The accessibility proposal remains a concrete grouped-confirmation item. Neither qualifies for unattended application."
+  },
+  "verified_evidence_refreshes": [
+    "Updated current FantasyPros plan and imported settings to September 6 observed evidence; kept calculator and Yahoo 2026 inspection dates distinct.",
+    "Added signed-in Yahoo 2025 exact rules and computer-lock boundary.",
+    "Marked local importer/replay/pilot tests and state probe passed, with explicit offline and fixture limits.",
+    "Documented accepted historical purchases rejected by optimizer completion policy; warned against reusing its legal_capacity as platform bid cap.",
+    "Preserved partial scoring and unarchived forecast provenance limitations.",
+    "Recorded three 410–420 ms quote-core timing samples with exclusions and unchanged frozen ceilings.",
+    "Recorded complete persona coverage and failed cross-model authentication without claiming independent-model agreement."
+  ],
+  "residual_concerns": [
+    {"source": "feasibility", "text": "Existing optimizer legal_capacity combines cash and roster capacity with starter-completion policy. Reusing it for platform opponent bid limits would misclassify some affordable accepted purchases; this was documented through root's state probe."},
+    {"source": "product-lens", "text": "Incremental value over existing personalized auction tools remains unproven; the specification confines current work to feasibility research."},
+    {"source": "scope-guardian", "text": "Provider observability remains blocked by entitlement, so matched live state comparisons are not confirmed."},
+    {"source": "scope-guardian", "text": "The examined 2025 season is not untouched validation; benefit needs independent league-season evidence."},
+    {"source": "adversarial", "text": "Full-auction gains depend on opponent and completion assumptions. Completed-sale history does not identify unobserved willingness to pay."}
+  ],
+  "deferred_questions": [
+    {"source": "feasibility", "text": "How will the implementation expose platform cash/slot purchasing capacity separately from modeled complete-roster feasibility?"},
+    {"source": "product-lens", "text": "What demonstrated benefit justifies the companion's setup and manual-sale-entry effort compared with existing providers?"},
+    {"source": "design-lens", "text": "During implementation planning, define exact loading, empty, stale, computing, error, and reconciled presentations."},
+    {"source": "design-lens", "text": "During implementation planning, decide whether the panel is desktop-only and how it behaves in narrow companion windows."},
+    {"source": "security-lens", "text": "When authenticated ingestion or a browser panel is approved, how will credentials, private league access, and imported content be protected? These implementation mechanisms do not block this feasibility investigation."},
+    {"source": "adversarial", "text": "How will opponent behavior be checked independently of the recommendation model so simulated improvements do not reward the pricing assumptions being evaluated?"}
+  ],
+  "completion": "Review complete"
+}

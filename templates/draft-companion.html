@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discount Double Check · Room replay</title>
+<style>
+  :root { color-scheme: light; --ink:#18382e; --muted:#52645b; --line:#d6ded6; --paper:#f4f5ef; --green:#176344; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.5 system-ui,sans-serif; }
+  header { background:var(--ink); color:#fff; padding:28px max(24px,calc((100vw - 1180px)/2)); }
+  header p { color:#cbdccf; margin:4px 0; }
+  h1 { font-size:clamp(28px,4vw,42px); letter-spacing:-1px; margin:0; }
+  h2 { font-size:24px; margin:0 0 8px; } h3 { font-size:18px; margin:0 0 10px; }
+  p { margin:8px 0; } small,.muted { color:var(--muted); }
+  main { max-width:1228px; padding:24px; margin:auto; }
+  button,input,select { font:inherit; min-height:44px; border:1px solid #8c9e91; border-radius:7px; padding:9px 12px; color:var(--ink); background:white; }
+  button { cursor:pointer; } button:hover:not(:disabled) { background:#edf3ec; }
+  button:disabled { opacity:.4; cursor:default; }
+  :focus-visible { outline:3px solid #bd6b18; outline-offset:3px; }
+  label { display:block; font-size:14px; font-weight:650; }
+  select { max-width:100%; } input[type=number] { width:140px; }
+  input[type=checkbox] { min-height:20px; width:20px; accent-color:var(--green); }
+  nav,.row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  nav { margin-bottom:24px; } nav button[aria-pressed=true],nav button[aria-pressed=true]:hover { color:white; background:var(--green); border-color:var(--green); }
+  .panel { border:1px solid var(--line); background:white; border-radius:12px; padding:22px; margin-bottom:20px; }
+  .notice { border-left:4px solid #9a6b29; padding:12px 16px; background:#fff8e9; margin:16px 0; }
+  .eyebrow { text-transform:uppercase; letter-spacing:1.5px; font-size:12px; font-weight:750; }
+  .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:20px 0; }
+  .metric { padding:16px; background:#eef3eb; border-radius:8px; }
+  .metric strong { display:block; font-size:28px; letter-spacing:-.5px; }
+  .metric span { font-size:13px; color:var(--muted); }
+  .controls { display:grid; grid-template-columns:1.5fr 1fr; gap:20px; margin:20px 0; }
+  .controls select { width:100%; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .branch { padding:18px; background:#f7f8f4; border:1px solid var(--line); border-radius:10px; }
+  .branch.favored { border:2px solid var(--green); padding:17px; }
+  .branch ul { padding-left:20px; margin-bottom:0; }
+  .score { font-size:26px; font-weight:700; }
+  .result { color:var(--green); font-size:21px; font-weight:700; }
+  .error { color:#922d20; font-weight:650; }
+  .check { display:flex; align-items:center; gap:9px; margin-top:18px; }
+  .scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th,td { border-bottom:1px solid var(--line); text-align:left; padding:12px 10px; vertical-align:top; }
+  th { font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
+  td.num { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  tr.own { background:#edf5eb; }
+  summary { cursor:pointer; min-height:30px; } details ul { padding-left:18px; }
+  .table-note { font-size:13px; margin-bottom:18px; }
+  [hidden] { display:none !important; }
+  footer { color:var(--muted); font-size:13px; margin:24px 0; }
+  @media(max-width:680px) {
+    main { padding:16px; } header { padding:22px 16px; } .panel { padding:16px; }
+    .metrics { grid-template-columns:1fr 1fr; } .controls,.two { grid-template-columns:1fr; }
+    .metric strong { font-size:24px; } th,td { padding:9px 7px; }
+  }
+</style>
+<header><p class="eyebrow">Discount Double Check</p><h1>Room replay</h1><p>Compare the roster you can build if you buy or pass.</p></header>
+<main>
+  <nav aria-label="Season view"><button id="replay-tab" aria-pressed="true">2025 decision explorer</button><button id="prep-tab" aria-pressed="false">2026 preparation</button></nav>
+  <section id="replay-view" aria-label="Historical replay">
+    <div class="notice"><strong>Exploratory model, no demonstrated edge.</strong> These are reconstructed recommendations from dated 2025 forecasts, not historical Draft Sharks or FantasyPros advice. Joint weekly scores include scheduled bye coverage; unresolved bounds remain visible. No live connection is active.</div>
+    <p id="identity" class="muted"></p>
+    <section class="panel">
+      <p class="eyebrow" id="decision-owner">Before the sale</p>
+      <div class="controls">
+        <div><label for="pick">Auction nomination</label><select id="pick"></select></div>
+        <div><label for="scenario">Assumed future room prices</label><select id="scenario"><option value="0.8">20% cheaper than central estimate</option><option value="1" selected>Central estimate</option><option value="1.2">20% more expensive than central estimate</option></select></div>
+        <div><label for="performance">Nominee performance assumption</label><select id="performance"><option value="neutral" selected>Neutral forecast</option><option value="forecast_minus_20_percent">Forecast reduced by 20%</option><option value="two_non_bye_absences">Absent for first two non-bye weeks</option></select></div>
+      </div>
+      <div class="row"><button id="previous">← Previous</button><button id="next">Next →</button><button id="puka">Puka example</button><span id="progress" class="muted"></span></div>
+      <div class="metrics" id="metrics"></div>
+      <h2 id="nominee"></h2>
+      <p id="market" class="muted"></p><p id="effort" class="muted"></p>
+      <p id="ceiling-summary"></p><p id="disagreement" class="muted"></p>
+      <p class="table-note">Cash cap reserves $1 per remaining slot. Model ceiling compares complete roster alternatives; it does not predict the winning bid.</p>
+      <label for="bid">Test your bid ($ whole dollars)</label><input id="bid" type="number" min="1" step="1" inputmode="numeric">
+      <div id="decision" aria-live="polite"></div>
+      <p class="notice"><strong>Theoretical roster completions.</strong> Every non-held starter and bench player can change. Bench players contribute when selected into weekly starters. K/DEF scoring remains excluded, and future specialists cost $1. These assumptions can still produce impractical depth; a witness is a feasible model roster, not a shopping list.</p>
+      <div id="branches" class="two"></div>
+      <label class="check"><input id="reveal" type="checkbox">Reveal this nomination’s actual 2025 sale</label>
+      <p id="actual" hidden></p>
+    </section>
+    <section class="panel"><h2>The room before this nomination</h2><p class="table-note">Observed purchases and cash only. Holdings summarize demand; they do not reveal losing bids, private targets, or a manager’s willingness to pay.</p><div class="scroll"><table><thead><tr><th>Manager / roster</th><th>Cash</th><th>Open</th><th>Cash cap</th></tr></thead><tbody id="room"></tbody></table></div></section>
+    <section class="panel"><h2>Earlier completed sales</h2><p class="table-note">Most recent first. Every row precedes the selected nomination.</p><div class="scroll"><table><thead><tr><th>Pick</th><th>Player</th><th>Price</th><th>Buyer</th></tr></thead><tbody id="history"></tbody></table></div><details><summary>Keepers already charged before the auction</summary><ul id="keepers"></ul></details></section>
+    <details class="panel"><summary>What this comparison does and does not measure</summary><ul>
+      <li>Each step restores the actual historical prefix. Hypothetical purchases do not carry into the next nomination. These are separate decision comparisons, not a simulated alternate season.</li>
+      <li>Forecast pages display dates before the 2025 draft but were retrieved in 2026. They were not independently archived before the draft; source hashes establish reproducibility now.</li>
+      <li>Future prices combine remaining cash, undrafted values and earlier sale ratios, then apply the selected scenario. They are estimates, not guaranteed purchase opportunities.</li>
+      <li>The joint objective uses projected core-offense starting lineups in Weeks 1–17, including known byes. Season forecasts are distributed uniformly over 17 NFL games. K/DEF scoring and waiver management remain excluded; all future specialists cost $1.</li>
+      <li>Supported bids have a buy lower bound above the pass upper bound. Possible bids include unresolved comparisons and are not precise recommendations. A work limit can leave a finite upper bound without a feasible roster found.</li>
+      <li>The performance selector tests a lower forecast or two explicitly absent non-bye weeks; these are assumptions, not injury probabilities. Neutral ceilings and the sensitivity range stay visible.</li>
+      <li>Some late historical rosters cannot satisfy the model’s starter constraints. In those cases, cash capacity remains visible and the model abstains.</li>
+      <li>2025 history alone does not establish a reliable manager behavior model or a proven scoring advantage.</li>
+    </ul></details>
+  </section>
+  <section id="prep-view" hidden aria-label="2026 preparation">
+    <section class="panel"><p class="eyebrow">Confirmed by Bo · 2026</p><h2>Caleb Williams stays for $1.</h2><div class="metrics" id="prep-metrics"></div><p>Cash and open slots assume the $200 budget and 14 paid roster places.</p><div class="notice"><strong>2026 bidding recommendations are not ready.</strong> Yahoo settings were verified September 6, 2026: half PPR, nine starters, five bench places, and two IR places. Fourteen is the team capacity; the draft card lists 13 teams and an offline draft. Final enrollment, opponent keepers and salaries, and the imported board configuration remain unresolved.</div><h3>Next evidence to add</h3><ol><li>Confirm final team count and all keepers and salaries; reconcile the imported board.</li><li>Take a dated, correctly configured 2026 provider-value snapshot.</li><li>Collect and reconcile another historical auction before fitting manager tendencies.</li><li>Validate a reliable completed-sale feed, with manual entry as a fallback.</li></ol></section>
+  </section>
+  <footer>Local research tool · No accounts, outbound requests or automated bids. Keep this file private: it contains your league’s history.</footer>
+</main>
+<script id="payload" type="application/json"><!--PAYLOAD--></script>
+<script id="calculation">
+function buyAt(changes, availableBudget) {
+  let result = null;
+  for (const [threshold, bound] of changes) {
+    if (threshold > availableBudget) break;
+    result = bound;
+  }
+  return result;
+}
+function assessBid(decision, scenario, rawBid) {
+  if (!scenario) return {error: decision.disposition === 'unrun' ? `Not evaluated: ${decision.blocked}.` : `Recommendation unavailable: ${decision.blocked}. Cash capacity is shown separately.`};
+  if (decision.cash_cap < 1) return {error: 'No affordable bid: cash or roster capacity is exhausted.'};
+  const bid = Number(rawBid);
+  if (!rawBid.trim() || !Number.isSafeInteger(bid) || bid < 1 || bid > decision.cash_cap)
+    return {error: `Enter a whole-dollar bid from $1 to $${decision.cash_cap}.`};
+  const buy = buyAt(scenario.buy, decision.budget - bid), passing = scenario.passing;
+  const proof = scenario.prices.find(p => p.price === bid);
+  if (!proof || !buy || !passing) return {error:'Frozen proof is unavailable for this price. Regenerate the snapshot.'};
+  const exact = buy.status === 'optimal' && passing.status === 'optimal';
+  const verdicts = {buy:'Buy supported at this price',pass:'Pass supported at this price',
+                    unresolved:'Unresolved at this price',infeasible:'No feasible completion at this price'};
+  return {bid, buy, passing, action:proof.roster_action, reason:proof.reason,
+          verdict:verdicts[proof.roster_action] + (exact ? ' · exact comparison' : '')};
+}
+function scenarioFor(decision, factor, performance) {
+  return decision.cases[factor]?.[performance];
+}
+function ceilingSummary(decision, factor) {
+  const cases = decision.cases[factor];
+  if (!cases) return null;
+  const all = Object.values(decision.cases).flatMap(Object.values), selected = Object.values(cases);
+  const supported = selected.map(c => c.supported_ceiling), possible = selected.map(c => c.possible_ceiling);
+  return {neutral:cases.neutral, supported:[Math.min(...supported),Math.max(...supported)],
+          possible:[Math.min(...possible),Math.max(...possible)],
+          disagreement:all[0].prices.some((p,index) => new Set(all.map(c => c.prices[index].roster_action)).size > 1)};
+}
+</script>
+<script>
+'use strict';
+const data = JSON.parse(document.getElementById('payload').textContent);
+const byId = id => document.getElementById(id);
+byId('decision-owner').textContent = 'Before the sale · ' + data.team;
+byId('identity').textContent = `${data.objective} · Snapshot ${data.snapshot_hash?.slice(0,16) || 'historical fixed-starter comparator'}`;
+const money = value => '$' + value;
+const playerName = id => data.players[id].name + ' · ' + data.players[id].position;
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+function metrics(target, values) {
+  byId(target).replaceChildren(...values.map(([label, value]) => {
+    const node = element('div', undefined, 'metric');
+    node.append(element('strong', value), element('span', label)); return node;
+  }));
+}
+function selected() { return data.decisions[Number(byId('pick').value)]; }
+function branch(title, bound, bid, decision, favored) {
+  const node = element('div', undefined, 'branch' + (favored ? ' favored' : ''));
+  node.append(element('h3', title));
+  if (bound.status === 'infeasible') { node.append(element('p', 'No feasible completion')); return node; }
+  const score = v => Number(v).toLocaleString(undefined,{maximumFractionDigits:3});
+  if (bound.lower === null) {
+    node.append(element('p','No feasible roster found within the work limit'),element('p',`Upper bound: ${score(bound.upper)}`));
+    return node;
+  }
+  let interval = bound.status === 'optimal' ? score(bound.lower) : `${score(bound.lower)}–${score(bound.upper)}`;
+  if (bound.status !== 'optimal' && score(bound.lower) === score(bound.upper)) interval = `${bound.lower}–${bound.upper}`;
+  node.append(element('div',interval,'score'), element('small',bound.status === 'optimal' ? 'Proved score · projected core offense' : 'Best found lower bound – upper bound · projected core offense'));
+  node.append(element('p', `${money(bound.cost)} future purchases · ${money(decision.budget - bid - bound.cost)} cash left`));
+  const held = new Set(decision.room.find(t => t.name === data.team).roster), list = element('ul');
+  for (const id of bound.roster) {
+    const label = held.has(id) ? ' (already held)' : id === decision.player_id ? ` (buy for ${money(bid)})` : ' (projected purchase)';
+    list.append(element('li', playerName(id) + label));
+  }
+  node.append(list); return node;
+}
+function renderBid() {
+  const d = selected(), scenario = scenarioFor(d,byId('scenario').value,byId('performance').value);
+  const result = assessBid(d, scenario, byId('bid').value);
+  byId('branches').replaceChildren();
+  byId('decision').replaceChildren(element('p', result.error || result.verdict, result.error ? 'error' : 'result'));
+  if (result.error) return;
+  byId('decision').append(element('p',result.reason,'muted'));
+  byId('branches').append(branch(`Buy at ${money(result.bid)}`, result.buy, result.bid, d, result.action === 'buy'), branch('Pass and keep your cash', result.passing, 0, d, result.action === 'pass'));
+}
+function renderScenario(resetBid) {
+  const d = selected(), factor = byId('scenario').value, c = scenarioFor(d,factor,byId('performance').value), summary = ceilingSummary(d,factor);
+  const unavailable = d.disposition === 'unrun' ? 'Not evaluated' : 'Unavailable';
+  metrics('metrics', [['Your cash',money(d.budget)],['Cash cap',money(d.cash_cap)],['Supported through',c ? c.supported_ceiling ? money(c.supported_ceiling) : 'No supported bid' : unavailable],['Possible through',c ? c.possible_ceiling ? money(c.possible_ceiling) : 'None' : unavailable]]);
+  byId('ceiling-summary').textContent = summary ? `Neutral: ${summary.neutral.supported_ceiling ? 'supported through '+money(summary.neutral.supported_ceiling) : 'No supported bid'}; possible through ${money(summary.neutral.possible_ceiling)}. Performance range: supported ${summary.supported.map(money).join('–')}; possible ${summary.possible.map(money).join('–')}. Possible bids include unresolved prices.` : 'No model ceilings for this nomination.';
+  byId('disagreement').textContent = summary?.disagreement ? 'The nine scenarios disagree at some prices. These are sensitivity assumptions, not probabilities.' : summary ? 'The nine scenarios have the same price classifications.' : '';
+  byId('market').textContent = c ? `Reconstructed room price: ${money(c.market_price)}. This estimate is separate from your roster ceiling.` : `No modeled price here: ${d.blocked}.`;
+  byId('effort').textContent = c ? `Search nodes: buy ${c.buy_effort.nodes}/${c.buy_effort.work_limit}; pass ${c.pass_effort.nodes}/${c.pass_effort.work_limit}. Relaxation transitions: buy ${c.buy_effort.relaxation_transitions}/${c.buy_effort.relaxation_limit}; pass ${c.pass_effort.relaxation_transitions}/${c.pass_effort.relaxation_limit}. ${c.absent_weeks.length ? 'Assumed absent weeks: '+c.absent_weeks.join(', ')+'.' : ''}` : '';
+  byId('bid').max = d.cash_cap;
+  byId('bid').disabled = !c || d.cash_cap < 1;
+  if (resetBid) byId('bid').value = d.cash_cap ? Math.min(d.cash_cap, c ? c.market_price : 1) : '';
+  renderBid();
+}
+function renderPick() {
+  const index = Number(byId('pick').value), d = selected();
+  byId('previous').disabled = index === 0; byId('next').disabled = index === data.decisions.length - 1;
+  byId('progress').textContent = `${index + 1} of ${data.decisions.length} auction sales`;
+  byId('nominee').textContent = playerName(d.player_id);
+  byId('reveal').checked = false; byId('actual').hidden = true; byId('actual').textContent = '';
+  byId('room').replaceChildren(...d.room.map(t => {
+    const tr = element('tr', undefined, t.name === data.team ? 'own' : '');
+    const cell = element('td'), detail = element('details'), list = element('ul'), positions = {};
+    for (const id of t.roster) { positions[data.players[id].position] = (positions[data.players[id].position] || 0)+1; list.append(element('li',playerName(id))); }
+    detail.append(element('summary', t.name), element('small', Object.entries(positions).map(([p,n]) => `${n} ${p}`).join(' · ') || 'No players held'),list);
+    cell.append(detail); tr.append(cell, element('td',money(t.budget),'num'),element('td',String(t.open_slots),'num'),element('td',money(t.cash_cap),'num')); return tr;
+  }));
+  byId('history').replaceChildren(...data.sales.slice(0,d.history_count).reverse().map(s => {
+    const tr = element('tr'); [s.pick,s.name,money(s.price),s.buyer].forEach(v => tr.append(element('td',String(v)))); return tr;
+  }));
+  if (!d.history_count) { const tr = element('tr'), td = element('td','No auction sales yet; keeper costs are already charged.'); td.colSpan=4; tr.append(td); byId('history').append(tr); }
+  renderScenario(true);
+}
+data.decisions.forEach((d,index) => { const option = element('option',`${d.pick}. ${playerName(d.player_id)}`); option.value=index; byId('pick').append(option); });
+data.keepers.forEach(s => byId('keepers').append(element('li',`${s.name} · ${money(s.price)} · ${s.buyer}`)));
+byId('pick').addEventListener('change',renderPick);
+byId('bid').addEventListener('input',renderBid);
+byId('scenario').addEventListener('change',() => renderScenario(false));
+byId('performance').addEventListener('change',() => renderScenario(false));
+function move(index) { byId('pick').value=index; renderPick(); }
+byId('previous').addEventListener('click',() => move(Number(byId('pick').value)-1));
+byId('next').addEventListener('click',() => move(Number(byId('pick').value)+1));
+byId('puka').addEventListener('click',() => move(data.decisions.findIndex(d => d.pick === 14)));
+byId('puka').hidden = !data.decisions.some(d => d.pick === 14);
+byId('reveal').addEventListener('change',() => {
+  const sale = data.sales.find(s => s.pick === selected().pick);
+  byId('actual').textContent = byId('reveal').checked ? `${sale.name} sold for ${money(sale.price)} to ${sale.buyer}. This outcome did not enter the selected recommendation.` : '';
+  byId('actual').hidden = !byId('reveal').checked;
+});
+function view(prep) {
+  byId('prep-view').hidden = !prep; byId('replay-view').hidden = prep;
+  byId('prep-tab').setAttribute('aria-pressed',String(prep)); byId('replay-tab').setAttribute('aria-pressed',String(!prep));
+}
+byId('prep-tab').addEventListener('click',() => view(true));
+byId('replay-tab').addEventListener('click',() => view(false));
+const prep = data.preparation;
+metrics('prep-metrics',[['Teams',String(prep.teams)],['Starting budget',money(prep.budget)],['Cash after Caleb',money(prep.cash)],['Open paid slots',String(prep.open_slots)]]);
+renderPick();
+</script>
+</html>

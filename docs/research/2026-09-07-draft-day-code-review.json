@@ -1,0 +1,411 @@
+{
+  "status": "complete",
+  "verdict": "Ready with fixes",
+  "scope": {
+    "base": "6d92d19a3df8c36559b9fcffe87f201e5c8caa57",
+    "branch": "feat/league-specific-auction-replay",
+    "head_sha": "6d92d19a3df8c36559b9fcffe87f201e5c8caa57",
+    "pr_url": null,
+    "files_changed": 3,
+    "files": [
+      "docs/research/draft-day.html",
+      "docs/research/build_draft_day.py",
+      "docs/research/test_draft_day.py"
+    ],
+    "mode": "explicit full-file review of three new untracked files"
+  },
+  "intent": "Provide a private offline manual comparison of two complete 14-player rosters using supplied DS projections and Market $ +1 rehearsal prices. Preserve shared actual purchases and keeper costs, reserve roster-fill money, suppress invalid comparisons, preserve state and backups without stale quote/readiness claims. This is a worksheet beside Draft Sharks; it has no live feed, automated recommendation, or forecast-superiority claim.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "project-standards",
+    "testing",
+    "security",
+    "reliability",
+    "adversarial",
+    "frontend-races"
+  ],
+  "findings": [
+    {
+      "#": 1,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "file": "docs/research/draft-day.html",
+      "first_evidence": "docs/research/draft-day.html:106 -- $('undo').onclick=()=>{if(previous){const next=previous;previous=null;state=next;apply();}};",
+      "independent_reviewers": [
+        "adversarial",
+        "correctness"
+      ],
+      "line": 106,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "adversarial",
+        "correctness"
+      ],
+      "severity": "P2",
+      "suggested_fix": "In the undo handler, set state.confirmed=false and state.quote='' after assigning the previous state and before apply(), matching initialization and backup restoration. Add a focused transition check that a bid edit followed by Undo restores the bid while leaving confirmation false and quote empty.",
+      "title": "Undo revives cleared quotes and readiness confirmation",
+      "why_it_matters": "Undo brings back a provider quote and checked readiness that a roster change invalidated. Starting with quote='80' and confirmed=true, changing the bid clears both fields, but Undo restores the old quote and marks the worksheet checked again; this contradicts the promised clearing on plan changes. Clear both transient fields after assigning the restored state, matching reload and backup restore, so Undo restores planning data without reviving a current-room claim.",
+      "evidence": [
+        "docs/research/draft-day.html:106 -- $('undo').onclick=()=>{if(previous){const next=previous;previous=null;state=next;apply();}};",
+        "docs/research/draft-day.html:58 -- function before(){previous=structuredClone(state);state.confirmed=false;state.quote='';}",
+        "docs/research/draft-day.html:12 promises: Quotes clear when your plan changes. Reload at line 54 and restore at line 109 explicitly clear quote and confirmed; Undo does neither.",
+        "Executed the actual scripts with an in-memory Node DOM harness: quote='80', confirmed=true, bid=78 -> bid input 79 clears both -> Undo returns quote='80', confirmed=true, bid=78. The existing extracted arithmetic/state validation checks pass and do not execute this handler.",
+        "Scenario: start with confirmed=true and quote='50'; a bid edit invokes before(), preserving those fields in previous while clearing the current state. Undo assigns previous back to state and apply() synchronizes/saves/renders without clearing them.",
+        "Executed the exact before() and undo handler extracted from the HTML in Node, starting with cost=1, confirmed=true, quote='50'; after an edit to cost=2 and Undo, observed {restoredCost:1,confirmed:true,quote:'50'}.",
+        "docs/research/draft-day.html:12 promises 'Quotes clear when your plan changes.' Initialization (line 54) and backup restore (line 109) explicitly clear confirmation and quote, so the undo transition bypasses the existing invalidation behavior."
+      ]
+    },
+    {
+      "#": 2,
+      "autofix_class": "gated_auto",
+      "confidence": 75,
+      "file": "docs/research/draft-day.html",
+      "first_evidence": "docs/research/draft-day.html:109: $('restore').onchange=async()=>{try{const file=$('restore').files[0];if(!file)return;if(file.size>1000000)throw Error('Backup is too large.');const next=JSON.parse(await file.text());if(!validState(next,DATA.source))throw Error('Backup does not match this projection snapshot or has invalid fields.');previous=structuredClone(state);state=next;syncOwned(state);state.confirmed=false;state.quote='';storageBlocked=false;apply();}catch(e){$('storage').textContent='Restore rejected; existing worksheet preserved. '+e.message;}finally{$('restore').value='';}};",
+      "independent_reviewers": [
+        "frontend-races"
+      ],
+      "line": 109,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "frontend-races"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Disable the restore input for the duration of the handler and re-enable it in finally, preventing a second restore from starting before the first completes. Add one focused check that delays the first file read and verifies another selection cannot supersede it.",
+      "title": "Overlapping restores can apply the older backup",
+      "why_it_matters": "The restore handler remains interactive while awaiting file.text(). If a second backup is selected before the first read completes, both handlers continue, and whichever read finishes last replaces state. An older selection can therefore overwrite the newer restore and its saved worksheet state.",
+      "evidence": [
+        "docs/research/draft-day.html:109: $('restore').onchange=async()=>{try{const file=$('restore').files[0];if(!file)return;if(file.size>1000000)throw Error('Backup is too large.');const next=JSON.parse(await file.text());if(!validState(next,DATA.source))throw Error('Backup does not match this projection snapshot or has invalid fields.');previous=structuredClone(state);state=next;syncOwned(state);state.confirmed=false;state.quote='';storageBlocked=false;apply();}catch(e){$('storage').textContent='Restore rejected; existing worksheet preserved. '+e.message;}finally{$('restore').value='';}};",
+        "The handler performs no in-flight guard or input disable before await file.text(), so two invocations may reach state=next in completion order rather than selection order."
+      ]
+    },
+    {
+      "#": 3,
+      "autofix_class": "gated_auto",
+      "confidence": 75,
+      "file": "docs/research/draft-day.html",
+      "first_evidence": "docs/research/draft-day.html:109 -- $('restore').onchange=async()=>{try{const file=$('restore').files[0];if(!file)return;if(file.size>1000000)throw Error('Backup is too large.');const next=JSON.parse(await file.text());if(!validState(next,DATA.source))throw Error('Backup does not match this projection snapshot or has invalid fields.');previous=structuredClone(state);state=next;syncOwned(state);state.confirmed=false;state.quote='';storageBlocked=false;apply();}catch(e){$('storage').textContent='Restore rejected; existing worksheet preserved. '+e.message;}finally{$('restore').value='';}};",
+      "independent_reviewers": [
+        "testing"
+      ],
+      "line": 109,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "testing"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Add one browser-level restore test that starts from a known state, submits an invalid backup and asserts the state is unchanged, then submits a valid matching-source backup and asserts the restored plans are rendered, confirmed and quote are cleared, storageBlocked is reset, and saving resumes.",
+      "title": "Restore lifecycle has no behavioral test",
+      "why_it_matters": "A malformed, oversized, mismatched-source, or unreadable backup must leave the active worksheet intact, while a valid restore must clear stale confirmation and quote state and resume saving. The runnable check exercises validState in isolation but never invokes the restore handler, so regressions in this state-preservation contract can pass the suite and surface only during draft-day recovery.",
+      "evidence": [
+        "docs/research/draft-day.html:109 -- $('restore').onchange=async()=>{try{const file=$('restore').files[0];if(!file)return;if(file.size>1000000)throw Error('Backup is too large.');const next=JSON.parse(await file.text());if(!validState(next,DATA.source))throw Error('Backup does not match this projection snapshot or has invalid fields.');previous=structuredClone(state);state=next;syncOwned(state);state.confirmed=false;state.quote='';storageBlocked=false;apply();}catch(e){$('storage').textContent='Restore rejected; existing worksheet preserved. '+e.message;}finally{$('restore').value='';}};",
+        "docs/research/test_draft_day.py:32 -- assert.equal(validState(s,'abc'),true);assert.equal(validState(s,'different'),false);"
+      ]
+    },
+    {
+      "#": 4,
+      "autofix_class": "gated_auto",
+      "confidence": 75,
+      "file": "docs/research/draft-day.html",
+      "first_evidence": "docs/research/draft-day.html:80 -- state.plans.forEach((plan,j)=>plan.forEach((r,i)=>{const name=$(`name-${j}-${i}`),cost=$(`cost-${j}-${i}`),own=$(`owned-${j}-${i}`);name.value=r.name;cost.value=r.cost??'';own.checked=state.owned[i];own.disabled=j===1;name.disabled=cost.disabled=j===1&&state.owned[i];name.parentElement.classList.toggle('owned',state.owned[i]);}));",
+      "independent_reviewers": [
+        "correctness"
+      ],
+      "line": 80,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Change the player/cost disabled condition in render() from j===1&&state.owned[i] to state.owned[i]. Keep the existing Plan A Own checkbox enabled so the user can uncheck before correcting the shared slot, then recheck to synchronize the correction. Verify both owned fields lock and unlock through this workflow.",
+      "title": "Lock owned Plan A player and price fields",
+      "why_it_matters": "Editing Plan A can replace a recorded purchase or the $1 keeper in both rosters while leaving it marked owned at the previous player's actual price. Only Plan B's owned fields are disabled, and Plan A's name input immediately propagates through syncOwned; changing the owned QB to another eligible QB produces two apparently valid rosters containing the new QB at $1. Lock both plans' owned player and cost inputs, keeping the Plan A Own checkbox available for the explicit correction workflow already described by the page.",
+      "evidence": [
+        "docs/research/draft-day.html:80 -- state.plans.forEach((plan,j)=>plan.forEach((r,i)=>{const name=$(`name-${j}-${i}`),cost=$(`cost-${j}-${i}`),own=$(`owned-${j}-${i}`);name.value=r.name;cost.value=r.cost??'';own.checked=state.owned[i];own.disabled=j===1;name.disabled=cost.disabled=j===1&&state.owned[i];name.parentElement.classList.toggle('owned',state.owned[i]);}));",
+        "docs/research/draft-day.html:69 -- name.oninput=()=>{before();const r=state.plans[plan][i];r.name=name.value;if(Object.hasOwn(pool,r.name)&&pool[r.name].market!==null&&!state.owned[i])r.cost=pool[r.name].market+1;apply();};",
+        "docs/research/draft-day.html:27 -- function syncOwned(s){s.plans.forEach(p=>p.forEach((r,i)=>{r.owned=s.owned[i];if(r.owned)Object.assign(r,s.plans[0][i]);}));}",
+        "docs/research/draft-day.html:17 instructs: Uncheck it before correcting a shared slot.",
+        "Executed the actual scripts with an in-memory Node DOM harness: the owned Plan A QB name and cost controls report disabled=false while Plan B is disabled=true. Invoking Plan A's name input with another eligible QB produces {name:'otherQB',cost:1,owned:true} in both plans without unchecking Own."
+      ]
+    }
+  ],
+  "actionable_findings": [
+    {
+      "#": 1,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "file": "docs/research/draft-day.html",
+      "first_evidence": "docs/research/draft-day.html:106 -- $('undo').onclick=()=>{if(previous){const next=previous;previous=null;state=next;apply();}};",
+      "independent_reviewers": [
+        "adversarial",
+        "correctness"
+      ],
+      "line": 106,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "adversarial",
+        "correctness"
+      ],
+      "severity": "P2",
+      "suggested_fix": "In the undo handler, set state.confirmed=false and state.quote='' after assigning the previous state and before apply(), matching initialization and backup restoration. Add a focused transition check that a bid edit followed by Undo restores the bid while leaving confirmation false and quote empty.",
+      "title": "Undo revives cleared quotes and readiness confirmation",
+      "why_it_matters": "Undo brings back a provider quote and checked readiness that a roster change invalidated. Starting with quote='80' and confirmed=true, changing the bid clears both fields, but Undo restores the old quote and marks the worksheet checked again; this contradicts the promised clearing on plan changes. Clear both transient fields after assigning the restored state, matching reload and backup restore, so Undo restores planning data without reviving a current-room claim.",
+      "evidence": [
+        "docs/research/draft-day.html:106 -- $('undo').onclick=()=>{if(previous){const next=previous;previous=null;state=next;apply();}};",
+        "docs/research/draft-day.html:58 -- function before(){previous=structuredClone(state);state.confirmed=false;state.quote='';}",
+        "docs/research/draft-day.html:12 promises: Quotes clear when your plan changes. Reload at line 54 and restore at line 109 explicitly clear quote and confirmed; Undo does neither.",
+        "Executed the actual scripts with an in-memory Node DOM harness: quote='80', confirmed=true, bid=78 -> bid input 79 clears both -> Undo returns quote='80', confirmed=true, bid=78. The existing extracted arithmetic/state validation checks pass and do not execute this handler.",
+        "Scenario: start with confirmed=true and quote='50'; a bid edit invokes before(), preserving those fields in previous while clearing the current state. Undo assigns previous back to state and apply() synchronizes/saves/renders without clearing them.",
+        "Executed the exact before() and undo handler extracted from the HTML in Node, starting with cost=1, confirmed=true, quote='50'; after an edit to cost=2 and Undo, observed {restoredCost:1,confirmed:true,quote:'50'}.",
+        "docs/research/draft-day.html:12 promises 'Quotes clear when your plan changes.' Initialization (line 54) and backup restore (line 109) explicitly clear confirmation and quote, so the undo transition bypasses the existing invalidation behavior."
+      ]
+    },
+    {
+      "#": 2,
+      "autofix_class": "gated_auto",
+      "confidence": 75,
+      "file": "docs/research/draft-day.html",
+      "first_evidence": "docs/research/draft-day.html:109: $('restore').onchange=async()=>{try{const file=$('restore').files[0];if(!file)return;if(file.size>1000000)throw Error('Backup is too large.');const next=JSON.parse(await file.text());if(!validState(next,DATA.source))throw Error('Backup does not match this projection snapshot or has invalid fields.');previous=structuredClone(state);state=next;syncOwned(state);state.confirmed=false;state.quote='';storageBlocked=false;apply();}catch(e){$('storage').textContent='Restore rejected; existing worksheet preserved. '+e.message;}finally{$('restore').value='';}};",
+      "independent_reviewers": [
+        "frontend-races"
+      ],
+      "line": 109,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "frontend-races"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Disable the restore input for the duration of the handler and re-enable it in finally, preventing a second restore from starting before the first completes. Add one focused check that delays the first file read and verifies another selection cannot supersede it.",
+      "title": "Overlapping restores can apply the older backup",
+      "why_it_matters": "The restore handler remains interactive while awaiting file.text(). If a second backup is selected before the first read completes, both handlers continue, and whichever read finishes last replaces state. An older selection can therefore overwrite the newer restore and its saved worksheet state.",
+      "evidence": [
+        "docs/research/draft-day.html:109: $('restore').onchange=async()=>{try{const file=$('restore').files[0];if(!file)return;if(file.size>1000000)throw Error('Backup is too large.');const next=JSON.parse(await file.text());if(!validState(next,DATA.source))throw Error('Backup does not match this projection snapshot or has invalid fields.');previous=structuredClone(state);state=next;syncOwned(state);state.confirmed=false;state.quote='';storageBlocked=false;apply();}catch(e){$('storage').textContent='Restore rejected; existing worksheet preserved. '+e.message;}finally{$('restore').value='';}};",
+        "The handler performs no in-flight guard or input disable before await file.text(), so two invocations may reach state=next in completion order rather than selection order."
+      ]
+    },
+    {
+      "#": 3,
+      "autofix_class": "gated_auto",
+      "confidence": 75,
+      "file": "docs/research/draft-day.html",
+      "first_evidence": "docs/research/draft-day.html:109 -- $('restore').onchange=async()=>{try{const file=$('restore').files[0];if(!file)return;if(file.size>1000000)throw Error('Backup is too large.');const next=JSON.parse(await file.text());if(!validState(next,DATA.source))throw Error('Backup does not match this projection snapshot or has invalid fields.');previous=structuredClone(state);state=next;syncOwned(state);state.confirmed=false;state.quote='';storageBlocked=false;apply();}catch(e){$('storage').textContent='Restore rejected; existing worksheet preserved. '+e.message;}finally{$('restore').value='';}};",
+      "independent_reviewers": [
+        "testing"
+      ],
+      "line": 109,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "testing"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Add one browser-level restore test that starts from a known state, submits an invalid backup and asserts the state is unchanged, then submits a valid matching-source backup and asserts the restored plans are rendered, confirmed and quote are cleared, storageBlocked is reset, and saving resumes.",
+      "title": "Restore lifecycle has no behavioral test",
+      "why_it_matters": "A malformed, oversized, mismatched-source, or unreadable backup must leave the active worksheet intact, while a valid restore must clear stale confirmation and quote state and resume saving. The runnable check exercises validState in isolation but never invokes the restore handler, so regressions in this state-preservation contract can pass the suite and surface only during draft-day recovery.",
+      "evidence": [
+        "docs/research/draft-day.html:109 -- $('restore').onchange=async()=>{try{const file=$('restore').files[0];if(!file)return;if(file.size>1000000)throw Error('Backup is too large.');const next=JSON.parse(await file.text());if(!validState(next,DATA.source))throw Error('Backup does not match this projection snapshot or has invalid fields.');previous=structuredClone(state);state=next;syncOwned(state);state.confirmed=false;state.quote='';storageBlocked=false;apply();}catch(e){$('storage').textContent='Restore rejected; existing worksheet preserved. '+e.message;}finally{$('restore').value='';}};",
+        "docs/research/test_draft_day.py:32 -- assert.equal(validState(s,'abc'),true);assert.equal(validState(s,'different'),false);"
+      ]
+    },
+    {
+      "#": 4,
+      "autofix_class": "gated_auto",
+      "confidence": 75,
+      "file": "docs/research/draft-day.html",
+      "first_evidence": "docs/research/draft-day.html:80 -- state.plans.forEach((plan,j)=>plan.forEach((r,i)=>{const name=$(`name-${j}-${i}`),cost=$(`cost-${j}-${i}`),own=$(`owned-${j}-${i}`);name.value=r.name;cost.value=r.cost??'';own.checked=state.owned[i];own.disabled=j===1;name.disabled=cost.disabled=j===1&&state.owned[i];name.parentElement.classList.toggle('owned',state.owned[i]);}));",
+      "independent_reviewers": [
+        "correctness"
+      ],
+      "line": 80,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Change the player/cost disabled condition in render() from j===1&&state.owned[i] to state.owned[i]. Keep the existing Plan A Own checkbox enabled so the user can uncheck before correcting the shared slot, then recheck to synchronize the correction. Verify both owned fields lock and unlock through this workflow.",
+      "title": "Lock owned Plan A player and price fields",
+      "why_it_matters": "Editing Plan A can replace a recorded purchase or the $1 keeper in both rosters while leaving it marked owned at the previous player's actual price. Only Plan B's owned fields are disabled, and Plan A's name input immediately propagates through syncOwned; changing the owned QB to another eligible QB produces two apparently valid rosters containing the new QB at $1. Lock both plans' owned player and cost inputs, keeping the Plan A Own checkbox available for the explicit correction workflow already described by the page.",
+      "evidence": [
+        "docs/research/draft-day.html:80 -- state.plans.forEach((plan,j)=>plan.forEach((r,i)=>{const name=$(`name-${j}-${i}`),cost=$(`cost-${j}-${i}`),own=$(`owned-${j}-${i}`);name.value=r.name;cost.value=r.cost??'';own.checked=state.owned[i];own.disabled=j===1;name.disabled=cost.disabled=j===1&&state.owned[i];name.parentElement.classList.toggle('owned',state.owned[i]);}));",
+        "docs/research/draft-day.html:69 -- name.oninput=()=>{before();const r=state.plans[plan][i];r.name=name.value;if(Object.hasOwn(pool,r.name)&&pool[r.name].market!==null&&!state.owned[i])r.cost=pool[r.name].market+1;apply();};",
+        "docs/research/draft-day.html:27 -- function syncOwned(s){s.plans.forEach(p=>p.forEach((r,i)=>{r.owned=s.owned[i];if(r.owned)Object.assign(r,s.plans[0][i]);}));}",
+        "docs/research/draft-day.html:17 instructs: Uncheck it before correcting a shared slot.",
+        "Executed the actual scripts with an in-memory Node DOM harness: the owned Plan A QB name and cost controls report disabled=false while Plan B is disabled=true. Invoking Plan A's name input with another eligible QB produces {name:'otherQB',cost:1,owned:true} in both plans without unchecking Own."
+      ]
+    }
+  ],
+  "triage_groups": [
+    {
+      "title": "Worksheet recovery",
+      "findings": [
+        1,
+        2,
+        3
+      ],
+      "context": "Restore and Undo must preserve planning data without reviving stale external-state claims.",
+      "preferred_resolution": "Clear transient fields across state adoption, prevent overlapping restores, and cover successful/rejected recovery transitions.",
+      "why": "One small state-adoption boundary can support the reset policy and its persistent checks; the file input needs a separate in-flight guard."
+    }
+  ],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Concurrent builds to one output path are not established as supported.",
+    "This local worksheet does not establish live draft-room integration, forecast superiority, final rules, or keeper/player availability."
+  ],
+  "testing_gaps": [
+    "Persistent recovery/Undo and owned-field locking checks are missing; findings #1, #3, and #4 identify the concrete paths.",
+    "Full-build synthetic fixture, output preservation, and payload escaping were verified during review but lack persistent regression checks.",
+    "Restore read ordering needs a focused delayed-read check (#2).",
+    "The final CSV check covers valid input, missing headers, malformed row width, and duplicate player names; duplicate-column rejection remains untested."
+  ],
+  "coverage": {
+    "artifact_root": "docs",
+    "reviewed_sha256": {
+      "docs/research/draft-day.html": "9f65c26986040386284cdcb28a1ff49bae768227593029dceaf65f911703ea7c",
+      "docs/research/build_draft_day.py": "e546dc9d4768a4b9bb5da5b082aede0349d34805198ce596f5d5fa717f08420f",
+      "docs/research/test_draft_day.py": "7a62726f215cc900a6a85f7b08959fa5dc7101e021d616bb8cbfa419405caa76"
+    },
+    "reviewer_receipts": {
+      "correctness": "<review-temp-dir>/ce-code-review/20260907-211645-3a45f2e9/correctness.json",
+      "project-standards": "<review-temp-dir>/ce-code-review/20260907-211645-3a45f2e9/project-standards.json",
+      "testing": "<review-temp-dir>/ce-code-review/20260907-211645-3a45f2e9/testing.json",
+      "security": "<review-temp-dir>/ce-code-review/20260907-211645-3a45f2e9/security.json",
+      "reliability": "<review-temp-dir>/ce-code-review/20260907-211645-3a45f2e9/reliability.json",
+      "adversarial": "<review-temp-dir>/ce-code-review/20260907-211645-3a45f2e9/adversarial.json",
+      "frontend-races": "<review-temp-dir>/ce-code-review/20260907-211645-3a45f2e9/frontend-races.json"
+    },
+    "roster_reasons": {
+      "correctness": "Budget arithmetic and state transitions.",
+      "project-standards": "Root AGENTS.md and CLAUDE.md apply as instruction-file fallback.",
+      "testing": "New calculation, parser, and recovery behavior with a runnable check.",
+      "security": "CSV/JSON input and HTML payload/rendering boundaries.",
+      "reliability": "Build output and browser persistence failure handling.",
+      "adversarial": "Shared purchases and state adoption can interact across transitions.",
+      "frontend-races": "Async backup restore mutates browser state."
+    },
+    "scope_helper": {
+      "status": "complete",
+      "exec_lines": 0,
+      "lite_eligible": false,
+      "reason": "git diff HEAD excludes the explicitly requested untracked files; the exact three full files were reviewed under the caller scope override."
+    },
+    "excluded": "Six preexisting untracked research files, private data/local and Downloads CSVs, and README implementation changes.",
+    "cross_model": {
+      "status": "not_run",
+      "lens": "local adversarial fallback",
+      "reason": "The sanctioned peer runner scopes git diff <base>, which cannot represent this untracked-only scope without prohibited Git mutation. No peer started and no code egressed.",
+      "independence_verified": false
+    },
+    "validator": {
+      "batches": 1,
+      "selected": 4,
+      "shortcut_skips": 0,
+      "verdicts": [
+        {
+          "#": 1,
+          "validated": true,
+          "reason": "The undo handler restores the snapshot captured before transient confirmation and quote were cleared, then apply() persists and renders those stale values without invalidating them again."
+        },
+        {
+          "#": 2,
+          "validated": true,
+          "reason": "The restore handler awaits file.text() while the input remains enabled and has no request-order guard, so overlapping selections can commit state in read-completion order."
+        },
+        {
+          "#": 3,
+          "validated": true,
+          "reason": "The runnable test extracts only the calculation script and checks validState directly, so it never exercises invalid or successful restore-handler transitions despite that handler owning preservation, clearing, and save-resumption behavior."
+        },
+        {
+          "#": 4,
+          "validated": true,
+          "reason": "render() disables owned name and cost fields only for Plan B, while editing an owned Plan A row remains possible and syncOwned() immediately copies that replacement into both plans without requiring the documented uncheck step."
+        }
+      ],
+      "dropped": 0,
+      "infrastructure_failures": 0,
+      "degraded_blockers": []
+    },
+    "malformed_findings": 0,
+    "malformed_returns": 0,
+    "suppressed_by_confidence": {},
+    "mode_aware_demotions": 0,
+    "semantic_duplicates_merged": 1,
+    "failed_reviewers": [],
+    "fast_pass": "No urgent preliminary candidates.",
+    "plan": "Historical replay plan was inspected as background; the current explicit manual-worksheet scope is distinct, so unrelated historical requirements and implementation-unit completeness were not graded. Settlement suppression was not evaluated.",
+    "verification": [
+      "python3 -B docs/research/test_draft_day.py passed, including final CSV checks.",
+      "Synthetic paired-export build produced two complete 14-row rosters; invalid nonfinite projection left the previous output unchanged.",
+      "Parent reports actual browser checks passed for current input edits, purchase sharing, local reload, valid/invalid backup restore, invalid-input suppression, future-price stress, and reload quote/readiness clearing.",
+      "All four findings passed one independent fresh-validator batch."
+    ],
+    "source_drift": "Only the parent-added CSV tests changed after opening scope; final test contents were reconciled and passed. HTML and builder stayed frozen; all final hashes verified.",
+    "applied": false
+  },
+  "artifact_path": "<review-temp-dir>/ce-code-review/20260907-211645-3a45f2e9",
+  "report_path": "docs/research/2026-09-07-draft-day-code-review.json",
+  "run_id": "20260907-211645-3a45f2e9",
+  "verification_addenda": [
+    {
+      "completed_at": "2026-09-08T04:32:42.450932+00:00",
+      "scope": "Narrow follow-up of accepted findings #1-#4 only; no full CE rerun.",
+      "status": "complete",
+      "verdict": "All four accepted findings resolved at source and script layers.",
+      "remaining_concrete_defects": [],
+      "finding_results": [
+        {
+          "#": 1,
+          "status": "resolved",
+          "evidence": "Undo now adopts through readState; the actual extracted handler restores planning values while keeping quote empty and confirmed false."
+        },
+        {
+          "#": 2,
+          "status": "resolved",
+          "evidence": "Restore checks input.disabled before entry, disables it before file.text(), and re-enables it in finally. A delayed-read probe confirms reentry does not start a second file read; success and rejection release the input."
+        },
+        {
+          "#": 3,
+          "status": "resolved",
+          "evidence": "Persistent portable checks now exercise readState for source/shape rejection, prior-state preservation, successful shared-owned normalization, candidate nonmutation, and transient reset. The narrow actual-handler probe also verifies rejected restore preserves both current state and previous, and a successful restore resumes saving."
+        },
+        {
+          "#": 4,
+          "status": "resolved",
+          "evidence": "Both plans now disable owned player and cost fields. The actual extracted render function confirms both lock, while Plan A Own remains available and unchecking unlocks correction."
+        }
+      ],
+      "checks": [
+        "python3 -B docs/research/test_draft_day.py passed.",
+        "node <review-temp-dir>/ce-code-review/20260907-211645-3a45f2e9/followup-verification.js passed."
+      ],
+      "runtime_evidence": "The follow-up Node probe executes the actual calculation, render, Undo, and restore code with minimal in-memory DOM stubs. It is not a real-browser receipt; the parent owns final UI verification.",
+      "verified_sha256": {
+        "docs/research/draft-day.html": "3f87735df5b706ff9fcef502acf4ac7c6a50bf94d042d0a444bb039d49c4b8ae",
+        "docs/research/build_draft_day.py": "e546dc9d4768a4b9bb5da5b082aede0349d34805198ce596f5d5fa717f08420f",
+        "docs/research/test_draft_day.py": "5b3b2e0307d7156632ef8ecbc3ac8d675faa9f62477f26f27359774fa5d8285e"
+      },
+      "original_findings_preserved": true,
+      "source_mutations_by_reviewer": false
+    }
+  ]
+}

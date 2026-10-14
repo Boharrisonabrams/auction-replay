@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auction-replay"
+version = "0.1.0"
+description = "Replay a fantasy football auction and test whether buying a player leaves a better complete, affordable roster than passing."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Bo Abrams" }]
+requires-python = ">=3.11"
+# Standard library only. Node.js is needed only by two browser-calculation tests.
+dependencies = []
+
+[project.scripts]
+auction-replay = "auction_replay.replay_auction:main"
+auction-replay-pilot = "auction_replay.historical_price_pilot:main"
+auction-replay-companion = "auction_replay.build_draft_companion:main"
+auction-replay-draft-day = "auction_replay.build_draft_day:main"
+auction-replay-yahoo-import = "auction_replay.import_yahoo_snapshot:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Tests use the standard library. From the repository root, run:
+#   python3 -B -m unittest discover -s tests
+# Each test file also runs on its own, for example: python3 -B tests/test_replay_auction.py
+# The modules resolve data/local/, docs/research/, and templates/ relative to the checkout,
+# so run them from a clone (PYTHONPATH=src, or an editable install), not from a built wheel.

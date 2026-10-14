@@ -1,0 +1,9 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.compound-engineering/config.local.yaml
+.context/compound-engineering/
+data/local/
+__pycache__/
+*.pyc

@@ -1,0 +1,197 @@
+pick,id,name,position,salary,team,keeper,points,games
+1,30972,Saquon Barkley,RB,70,Team A,false,213.8,16
+2,40055,Bijan Robinson,RB,69,n/a,false,331.3,17
+3,30121,Christian McCaffrey,RB,63,Team B,false,365.6,17
+4,denver,Broncos,DEF,2,Team C,false,143,17
+5,32687,CeeDee Lamb,WR,60,Team C,false,163.4,14
+6,30266,Jake Elliott,K,1,Team D,false,122.2,17
+7,28534,Stefon Diggs,WR,5,Team E,false,167.8,17
+8,40196,Chase Brown,RB,65,Team F,false,248.1,17
+9,40993,Bucky Irving,RB,56,Team D,false,123.5,10
+10,41791,Ashton Jeanty,RB,65,Team E,false,217.6,17
+11,40819,Brandon Aubrey,K,2,Team A,false,194,17
+12,29279,Derrick Henry,RB,72,Team G,false,272,17
+13,34107,Tyler Allgeier,RB,4,Team C,false,116,17
+14,40168,Puka Nacua,WR,49,Team H,false,310.5,16
+15,33500,Amon-Ra St. Brown,WR,58,Team C,false,265.5,17
+16,32711,Jonathan Taylor,RB,67,Team I,false,339.3,17
+17,9526,Graham Gano,K,1,Team E,false,39.8,5
+18,34344,Cameron Dicker,K,2,n/a,false,179.5,17
+19,40878,Brock Bowers,TE,33,Team C,false,144.2,12
+20,40118,De'Von Achane,RB,55,Team Bo,false,289.3,16
+21,30180,Alvin Kamara,RB,43,Team J,false,84.2,11
+22,30346,Harrison Butker,K,1,Team F,false,151.3,17
+23,30977,Josh Allen,QB,43,Team K,false,374.62,17
+24,34447,Jaylen Warren,RB,10,Team K,false,197.1,16
+25,philadelphia,Eagles,DEF,4,Team E,false,135,17
+26,32671,Joe Burrow,QB,18,Team A,false,139.46,8
+27,31883,A.J. Brown,WR,39,Team L,false,181.3,15
+28,33963,Drake London,WR,50,Team D,false,167.9,12
+29,40896,Jayden Daniels,QB,30,Team H,false,117.28,7
+30,31002,Lamar Jackson,QB,30,Team I,false,221.86,13
+31,30136,Evan Engram,TE,7,Team E,false,77.8,16
+32,40835,Jake Bates,K,1,Team L,false,158.6,17
+33,41807,Omarion Hampton,RB,55,Team F,false,119.7,9
+34,34010,Trey McBride,TE,31,Team B,false,252.9,17
+35,34019,James Cook III,RB,56,Team K,false,285.7,17
+36,33967,Jameson Williams,WR,20,Team F,false,187.4,17
+37,baltimore,Ravens,DEF,1,Team B,false,97,17
+38,30295,Aaron Jones Sr.,RB,11,Team A,false,104.7,12
+39,pittsburgh,Steelers,DEF,1,Team A,false,131,17
+40,buffalo,Bills,DEF,3,Team G,false,110,17
+41,40908,Ladd McConkey,WR,42,Team L,false,147.9,16
+42,41913,Trevor Etienne,RB,3,Team Bo,false,10.2,17
+43,28188,Chris Boswell,K,1,Team K,false,157.7,17
+44,30218,James Conner,RB,51,Team H,false,29.3,3
+45,40893,Marvin Harrison Jr.,WR,28,Team J,false,107.3,12
+46,minnesota,Vikings,DEF,1,Team L,false,136,17
+47,32725,J.K. Dobbins,RB,7,Team C,false,110.4,10
+48,31908,Terry McLaurin,WR,40,Team E,false,95.2,10
+49,30996,Calvin Ridley,WR,14,Team Bo,false,38.8,7
+50,40041,Jaxon Smith-Njigba,WR,39,Team B,false,300.4,17
+51,29754,Wil Lutz,K,1,Team B,false,136.7,17
+52,41804,Emeka Egbuka,WR,16,Team F,false,164.2,17
+53,40901,Rome Odunze,WR,14,Team Bo,false,124.1,12
+54,27581,Davante Adams,WR,39,n/a,false,192.9,14
+55,27535,Mike Evans,WR,35,Team A,false,69.8,8
+56,29399,Tyreek Hill,WR,33,Team A,false,43,4
+57,34007,George Pickens,WR,18,Team F,false,245.4,17
+58,41823,TreVeyon Henderson,RB,39,Team L,false,188.7,17
+59,33991,Breece Hall,RB,36,Team J,false,189.66,16
+60,41787,Travis Hunter,WR,17,Team Bo,false,49.8,7
+61,33398,DeVonta Smith,WR,22,Team G,false,163.3,17
+62,arizona,Cardinals,DEF,1,Team D,false,74,17
+63,33996,Kenneth Walker III,RB,52,Team B,false,176.4,17
+64,41793,Tetairoa McMillan,WR,23,Team L,false,176.4,17
+65,31833,Kyler Murray,QB,5,Team J,false,80.78,5
+66,32685,Jerry Jeudy,WR,8,Team Bo,false,95.7,17
+67,30123,Patrick Mahomes,QB,8,Team E,false,296.18,14
+68,34218,Brock Purdy,QB,6,Team Bo,false,187.38,9
+69,40064,Sam LaPorta,TE,15,n/a,false,86.9,9
+70,31896,DK Metcalf,WR,21,Team D,false,157.7,15
+71,31960,Tony Pollard,RB,29,Team H,false,169.3,17
+72,34207,Isiah Pacheco,RB,26,Team K,false,77.8,13
+73,31905,David Montgomery,RB,28,Team Bo,false,154.92,17
+74,42010,Jacory Croskey-Merritt,RB,6,Team G,false,135.8,17
+75,41048,Tyrone Tracy Jr.,RB,16,Team E,false,142.8,15
+76,31840,T.J. Hockenson,TE,7,Team A,false,87.3,15
+77,32231,Jakobi Meyers,WR,5,Team G,false,138.3,16
+78,41799,Tyler Warren,TE,9,Team F,false,150.5,17
+79,33966,Chris Olave,WR,6,n/a,false,219,16
+80,41845,RJ Harvey,RB,27,Team J,false,183.1,17
+81,32705,D'Andre Swift,RB,29,Team J,false,211.6,16
+82,40875,Bo Nix,QB,7,Team G,false,315.84,17
+83,30142,David Njoku,TE,3,Team Bo,false,69.8,12
+84,31010,Courtland Sutton,WR,17,Team J,false,182.7,17
+85,31056,Mark Andrews,TE,2,Team J,false,107,17
+86,40877,Xavier Worthy,WR,23,n/a,false,88.9,14
+87,41003,Theo Johnson,TE,1,Team E,false,105.3,15
+88,40075,Zach Charbonnet,RB,14,Team C,false,171.4,16
+89,33394,Jaylen Waddle,WR,13,Team K,false,162.12,16
+90,31019,Dallas Goedert,TE,3,Team G,false,155.1,15
+91,40892,Ricky Pearsall,WR,5,Team H,false,70.6,9
+92,29369,Dak Prescott,QB,7,Team F,false,323.78,17
+93,30994,DJ Moore,WR,19,Team D,false,145.18,17
+94,32887,Jauan Jennings,WR,16,Team D,false,145.8,15
+95,41881,Kaleb Johnson,RB,8,Team L,false,8.3,10
+96,40039,Zay Flowers,WR,22,Team I,false,200.3,17
+97,40084,Rashee Rice,WR,7,Team I,false,123.6,8
+98,34320,Jordan Mason,RB,21,Team H,false,121.9,16
+99,33508,Rhamondre Stevenson,RB,7,Team J,false,162.8,14
+100,40981,Braelon Allen,RB,6,Team B,false,14.3,4
+101,41808,Matthew Golden,WR,18,Team G,false,55.5,14
+102,33423,Javonte Williams,RB,14,n/a,false,225.3,16
+103,33413,Travis Etienne Jr.,RB,8,Team L,false,235.9,17
+104,30161,Joe Mixon,RB,10,Team G,false,0,
+105,30182,Cooper Kupp,WR,10,n/a,false,93.8,16
+106,41860,Pat Bryant,WR,1,Team F,false,59.3,15
+107,40102,Tucker Kraft,TE,3,Team H,false,101.2,8
+108,houston,Texans,DEF,1,Team J,false,164,17
+109,41922,Cam Skattebo,RB,10,Team E,false,115.7,8
+110,31868,Deebo Samuel Sr.,WR,12,Team Bo,false,152.2,16
+111,40042,Jordan Addison,WR,5,Team Bo,false,114.1,14
+112,40095,Tank Bigsby,RB,5,Team H,false,52.3,17
+113,40063,Jayden Reed,WR,2,Team E,false,39,7
+114,32704,Michael Pittman Jr.,WR,3,Team L,false,162.4,17
+115,41810,Jaxson Dart,QB,1,Team E,false,246.58,14
+116,41900,Bhayshul Tuten,RB,2,Team E,false,83.6,15
+117,30423,Austin Ekeler,RB,6,n/a,false,10.6,2
+118,34085,Jake Ferguson,TE,1,Team D,false,147.1,17
+119,26658,Zach Ertz,TE,1,Team I,false,101.4,13
+120,40958,Trey Benson,RB,4,Team L,false,28.9,4
+121,41795,Colston Loveland,TE,2,Team K,false,136.1,16
+122,34104,Khalil Shakir,WR,11,Team G,false,130.4,16
+123,31017,Christian Kirk,WR,5,Team C,false,43.9,13
+124,31005,Nick Chubb,RB,10,Team D,false,81.8,15
+125,41821,Quinshon Judkins,RB,9,Team L,false,156.8,14
+126,34112,Jerome Ford,RB,4,n/a,false,30.6,13
+127,40911,Keon Coleman,WR,4,Team K,false,83.4,13
+128,33415,Rashod Bateman,WR,5,n/a,false,45.9,13
+129,40126,Josh Downs,WR,6,Team Bo,false,107.4,16
+130,detroit,Lions,DEF,1,n/a,false,97,17
+131,33100,Rico Dowdle,RB,9,Team D,false,196.8,17
+132,34047,Rachaad White,RB,7,Team D,false,123,17
+133,33392,Kyle Pitts Sr.,TE,1,Team F,false,166.8,17
+134,41824,Luther Burden III,WR,3,Team C,false,104.4,15
+135,32843,Darnell Mooney,WR,3,Team A,false,66.3,15
+136,33412,Najee Harris,RB,5,Team A,false,10.1,3
+137,30199,Kareem Hunt,RB,4,Team G,false,136.4,17
+138,san-francisco,49ers,DEF,1,Team Bo,false,78,17
+139,33399,Justin Fields,QB,1,Team C,false,143.66,9
+140,30197,Chris Godwin Jr.,WR,6,Team K,false,66.5,9
+141,32695,Brandon Aiyuk,WR,2,Team I,false,0,
+142,40881,Drake Maye,QB,2,Team F,false,359.46,17
+143,28392,Amari Cooper,WR,1,n/a,false,0,
+144,34063,Dameon Pierce,RB,1,Team D,false,3.6,5
+145,34094,Calvin Austin III,WR,1,Team I,false,70.7,14
+146,32696,Jordan Love,QB,1,Team F,false,241.14,15
+147,32676,Justin Herbert,QB,1,Team B,false,299.88,16
+148,33998,Wan'Dale Robinson,WR,1,Team J,false,171.9,16
+149,26699,Keenan Allen,WR,2,Team J,false,142.2,17
+150,41988,Tyler Loop,K,1,Team G,false,144.7,17
+151,40900,Caleb Williams,QB,1,Team C,false,324.68,17
+152,40980,Ray Davis,RB,1,Team K,false,59.1,17
+153,27277,Adam Thielen,WR,2,Team G,false,30.1,16
+154,30971,Baker Mayfield,QB,4,Team D,false,282.92,17
+155,41969,Ollie Gordon II,RB,2,Team C,false,50.6,17
+156,34054,Brian Robinson,RB,2,Team C,false,58.5,17
+157,34659,Rashid Shaheed,WR,1,Team B,false,127.1,18
+158,32417,Chase McLaughlin,K,1,Team J,false,165.6,17
+159,40905,J.J. McCarthy,QB,1,Team A,false,137.38,10
+160,41819,Jayden Higgins,WR,1,Team K,false,109,17
+161,40090,Marvin Mims Jr.,WR,1,Team H,false,74.5,15
+162,29235,Jared Goff,QB,2,Team K,false,305.06,17
+163,41935,Jaydon Blue,RB,1,Team I,false,19.9,5
+164,40890,Xavier Legette,WR,1,Team F,false,71.8,15
+165,40119,Tyjae Spears,RB,1,Team B,false,89.2,13
+166,31857,Hollywood Brown,WR,1,Team A,false,113.2,16
+167,40952,Roman Wilson,WR,1,Team K,false,32.6,13
+168,26650,DeAndre Hopkins,WR,1,Team H,false,56,17
+169,33465,Joshua Palmer,WR,1,Team L,false,41.3,12
+170,41786,Cam Ward,QB,1,Team I,false,193.66,17
+171,30213,Jonnu Smith,TE,1,Team B,false,66.2,17
+172,40962,Blake Corum,RB,1,Team A,false,118.2,17
+173,40048,Dalton Kincaid,TE,1,Team H,false,106.6,12
+174,40030,C.J. Stroud,QB,1,Team L,false,216.54,14
+175,40121,Michael Wilson,WR,1,Team I,false,181.6,17
+176,40231,Chris Rodriguez Jr.,RB,1,Team B,false,90.5,13
+177,kansas-city,Chiefs,DEF,1,Team H,false,92,17
+178,washington,Commanders,DEF,1,Team I,false,76,17
+179,33389,Trevor Lawrence,QB,1,Team B,false,350.18,17
+180,29792,Ka'imi Fairbairn,K,1,Team H,false,203.3,15
+181,41937,DJ Giddens,RB,1,Team I,false,9.6,9
+182,42025,Kyle Monangai,RB,1,Team I,false,137.7,17
+183,32703,Tee Higgins,WR,26,Team Bo,true,182.1,15
+184,40883,Brian Thomas Jr.,WR,6,Team C,true,114.8,14
+185,33393,Ja'Marr Chase,WR,2,Team H,true,251.1,16
+186,33965,Garrett Wilson,WR,1,Team J,true,81.5,7
+187,26686,Travis Kelce,TE,32,Team G,true,155.2,17
+188,40899,Malik Nabers,WR,26,Team E,true,48.1,4
+189,32692,Justin Jefferson,WR,34,Team K,true,159.5,17
+190,30259,George Kittle,TE,21,Team L,true,133,11
+191,40059,Jahmyr Gibbs,RB,64,Team I,true,328.4,17
+192,32723,Jalen Hurts,QB,1,n/a,true,305.06,16
+193,31856,Josh Jacobs,RB,12,Team A,true,219.1,15
+194,33477,Nico Collins,WR,1,Team B,true,190.7,15
+195,34120,Kyren Williams,RB,1,Team F,true,245.3,17
+196,33514,Chuba Hubbard,RB,4,Team D,true,110.4,15

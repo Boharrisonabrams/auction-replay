@@ -1,0 +1,51 @@
+{
+  "observed_on": "2026-09-06",
+  "measurement": "Three sequential offline core quote computations on this Mac",
+  "source_sha256": {
+    "docs/research/historical_price_pilot.py": "bd5143ff2de2333966ec9a309687010ae55283d87e229ba2a8c6395ffebcdde2",
+    "docs/research/replay_auction.py": "b4f0aa6eb05b155fcc08ad34dd2def7930384e67097b9acb4ff3b2de7c73cd8d",
+    "data/local/2025/price-pilot-verified/recommendations.json": "3f5e7833c8c0064ae67a4c838b5649eb0d3ce518c405a12625f00d2529ed69a8",
+    "data/local/2025/sources/source-inventory.json": "234a2fa17762b27f07d9f5797daf11cab9b25401cead58b0a8a0d1ee7191b99a",
+    "data/local/2025/rules.json": "458442246c15150415300fbe289bfabfb097c89af6cb509913bdedc59c29c5d1"
+  },
+  "selection": "First three eligible offensive nominees in the existing 2025 replay; current and later closing prices and outcomes not used by the quote",
+  "player_count": 422,
+  "input_load_ms": 48.56,
+  "timed_operations": [
+    "future_prices with price factor1, specialist prices fixed at1",
+    "season_frontier pass",
+    "season_frontier buy with neutral forecast and no bench credit",
+    "_compare_frontiers"
+  ],
+  "excluded_from_timing": [
+    "input loading",
+    "replay market construction",
+    "UI input and rendering",
+    "network/API publication",
+    "weekly lineup optimizer",
+    "other price/forecast scenarios"
+  ],
+  "clock": "time.perf_counter",
+  "samples": [
+    {
+      "pick": 1,
+      "player": "Saquon Barkley",
+      "quote_core_ms": 410.63,
+      "roster_ceiling": 103
+    },
+    {
+      "pick": 2,
+      "player": "Bijan Robinson",
+      "quote_core_ms": 419.84,
+      "roster_ceiling": 103
+    },
+    {
+      "pick": 3,
+      "player": "Christian McCaffrey",
+      "quote_core_ms": 419.39,
+      "roster_ceiling": 82
+    }
+  ],
+  "check": "All three ceilings match previously frozen central pilot records",
+  "interpretation": "Promising core calculation timing for a rehearsal, not a browser latency SLA, tail-latency study, current bid advice, or evidence of recommendation quality"
+}
