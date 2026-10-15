@@ -10,9 +10,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "quickstart.sh"
-HEADINGS = ("Auction replay quickstart", "Benchmark summary",
-            "Bid ceilings for the team that won each sale (neutral scenario)",
-            "Buy versus pass bounds at the price paid (projected season points)", "Files")
+HEADINGS = (
+    "Auction replay quickstart",
+    "Benchmark summary",
+    "Bid ceilings for the team that won each sale (neutral scenario)",
+    "Buy versus pass bounds at the price paid (projected season points)",
+    "Files",
+)
 
 
 @unittest.skipIf(shutil.which("sh") is None, "the quickstart needs a POSIX shell")
@@ -21,9 +25,14 @@ class QuickstartChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "out"
             # Start outside the checkout to prove the script finds the repository on its own.
-            result = subprocess.run(["sh", str(SCRIPT), str(output)], cwd=directory,
-                                    env=dict(os.environ, PYTHON=sys.executable),
-                                    capture_output=True, text=True, timeout=60)
+            result = subprocess.run(
+                ["sh", str(SCRIPT), str(output)],
+                cwd=directory,
+                env=dict(os.environ, PYTHON=sys.executable),
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
             self.assertEqual(result.returncode, 0, result.stderr)
             for name in ("report.md", "decisions.csv", "summary.json"):
                 self.assertTrue((output / name).is_file(), name)
@@ -34,8 +43,10 @@ class QuickstartChecks(unittest.TestCase):
         self.assertLess(len(lines), 70, "the summary should stay short")
 
         def table(heading):
-            start = next(i for i in range(lines.index(heading), len(lines)) if lines[i].startswith("Pick"))
-            rows = {line.split()[0]: line.split() for line in lines[start + 1:start + 13]}
+            start = next(
+                i for i in range(lines.index(heading), len(lines)) if lines[i].startswith("Pick")
+            )
+            rows = {line.split()[0]: line.split() for line in lines[start + 1 : start + 13]}
             self.assertEqual(sorted(rows, key=int), [str(pick) for pick in range(1, 13)])
             return rows
 
