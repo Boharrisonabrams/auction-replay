@@ -1,5 +1,7 @@
 # Auction replay
 
+[![CI](https://github.com/Boharrisonabrams/auction-replay/actions/workflows/ci.yml/badge.svg)](https://github.com/Boharrisonabrams/auction-replay/actions/workflows/ci.yml)
+
 A local research tool that replays a real 14-team fantasy football auction and asks one question at every nomination and every legal price: does buying this player leave a better complete, affordable roster than passing? It uses only the Python standard library, and it reports "unresolved" when it cannot prove an answer.
 
 ## The problem
