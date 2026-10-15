@@ -34,6 +34,8 @@ To replay it, run `sh scripts/quickstart.sh` from the repository root.
 
 ## What to look for
 
+These results use the neutral scenario at the 1.0 future-price factor, as the quickstart tables do. The "Scenarios" column in the first table shows how far the proven ceiling moves across all nine scenarios.
+
 - Player B1, the top RB, sells first for $12. For the winner, Team Blue, buying is proven better than passing at every bid up to $14.
 - Player A1, the top QB, sells for $9. For the winner, Team Red, buying is proven only up to $7, so passing wins at the price paid.
 - Player D1, the top TE, sells for $10. For the winner, Team Gold, passing wins at every legal bid.
