@@ -1,0 +1,26 @@
+provider_id,name,position,nfl_team,bye,projected_points
+a1,Player A1,QB,AAA,7,340
+a2,Player A2,QB,BBB,9,310
+a3,Player A3,QB,CCC,6,290
+a4,Player A4,QB,DDD,10,275
+a5,Player A5,QB,EEE,8,250
+a6,Player A6,QB,FFF,11,235
+b1,Player B1,RB,AAA,7,300
+b2,Player B2,RB,BBB,9,245
+b3,Player B3,RB,CCC,6,210
+b4,Player B4,RB,DDD,10,180
+b5,Player B5,RB,EEE,8,150
+b6,Player B6,RB,FFF,11,125
+b7,Player B7,RB,AAA,7,105
+b8,Player B8,RB,BBB,9,95
+c1,Player C1,WR,BBB,9,290
+c2,Player C2,WR,CCC,6,240
+c3,Player C3,WR,DDD,10,215
+c4,Player C4,WR,EEE,8,185
+c5,Player C5,WR,FFF,11,160
+c6,Player C6,WR,AAA,7,135
+c7,Player C7,WR,BBB,9,115
+c8,Player C8,WR,CCC,6,100
+d1,Player D1,TE,CCC,6,190
+d2,Player D2,TE,DDD,10,130
+d3,Player D3,TE,EEE,8,95

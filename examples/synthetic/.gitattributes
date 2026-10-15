@@ -1,0 +1,3 @@
+# Each manifest records the SHA-256 of its CSV bytes. Keep Git from rewriting
+# line endings on checkout, or the replay rejects the files as changed.
+*.csv -text

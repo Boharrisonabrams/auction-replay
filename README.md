@@ -29,7 +29,15 @@ The 2025 outcomes are already known, so the main risk is hindsight leaking into 
 
 ## Run it
 
-You need Python 3.11 or later. There are no dependencies to install. Two tests also need Node.js, because they run the browser-side calculation code; without Node.js, those two tests are skipped.
+You need Python 3.11 or later. There are no dependencies to install.
+
+To see the replay work on a made-up league, run this command from the repository root:
+
+```sh
+sh scripts/quickstart.sh
+```
+
+In a few seconds, it replays a synthetic 4-team auction with 12 nominations from [the synthetic example](examples/synthetic/README.md). For each sale, it prints the winning team's bid ceilings and its buy-versus-pass bounds at the price paid. It reads no private data. The full report and decision CSV go to `data/local/quickstart/`, which Git ignores. To use a different interpreter, set `PYTHON`, for example `PYTHON=python3.12 sh scripts/quickstart.sh`.
 
 To run the full test suite, run this command from the repository root:
 
@@ -37,7 +45,7 @@ To run the full test suite, run this command from the repository root:
 python3 -B -m unittest discover -s tests
 ```
 
-The suite runs 12 tests in a few seconds. Each test file also runs on its own, for example `python3 -B tests/test_replay_auction.py`.
+The suite runs 13 tests in under 10 seconds, including one that runs the quickstart. Two tests also need Node.js, because they run the browser-side calculation code; without Node.js, those two tests are skipped. Each test file also runs on its own, for example `python3 -B tests/test_replay_auction.py`.
 
 To run a module, put `src/` on the path:
 
@@ -48,7 +56,7 @@ PYTHONPATH=src python3 -B -m auction_replay.companion_state_probe
 
 Both commands work on a fresh clone. The first audits the 196-row auction CSV and prints salary bands. The second checks cash conservation at all 182 sale states. If you prefer console scripts such as `auction-replay`, run `python3 -m pip install -e .`. The modules resolve `data/local/`, `docs/research/`, and `templates/` relative to the checkout, so use an editable install, not a built wheel.
 
-The full benchmark (`auction_replay.replay_auction`), the pilots, the offline decision explorer (`build_draft_companion`), and the draft-day worksheet (`build_draft_day`) read private inputs under `data/local/`, which this repository does not include. The replay exits 0 for a complete benchmark, 1 for a generated but incomplete benchmark, and 2 for an input or output error.
+By default, the full benchmark (`auction_replay.replay_auction`), the pilots, the offline decision explorer (`build_draft_companion`), and the draft-day worksheet (`build_draft_day`) read private inputs under `data/local/`, which this repository does not include. The quickstart points the replay at the synthetic inputs instead. The replay exits 0 for a complete benchmark, 1 for a generated but incomplete benchmark, and 2 for an input or output error.
 
 ### With private inputs
 
@@ -98,6 +106,8 @@ Coding agents did the rest under that direction, using the Compound Engineering 
 | `src/auction_replay/` | Replay engine, pilots, decision explorer and worksheet builders, offline Yahoo importer |
 | `tests/` | Standard-library checks, including the brute-force oracle and the no-leakage test |
 | `templates/` | HTML templates for the decision explorer and the draft-day worksheet |
+| `examples/synthetic/` | A made-up 4-team league that the quickstart replays |
+| `scripts/` | The quickstart script and the summary it prints |
 | `docs/research/` | Reports, the pseudonymized 2025 auction CSV, and review receipts |
 | `docs/plans/`, `docs/ideation/`, `docs/concept.md` | Problem statement, ideation, and the unified plan |
 

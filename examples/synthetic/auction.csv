@@ -1,0 +1,21 @@
+pick,id,name,position,salary,team,keeper
+1,b1,Player B1,RB,12,Team Blue,false
+2,c1,Player C1,WR,14,Team Green,false
+3,a1,Player A1,QB,9,Team Red,false
+4,d1,Player D1,TE,10,Team Gold,false
+5,b3,Player B3,RB,7,Team Red,false
+6,c3,Player C3,WR,5,Team Blue,false
+7,a2,Player A2,QB,8,Team Gold,false
+8,b4,Player B4,RB,6,Team Green,false
+9,c4,Player C4,WR,4,Team Red,false
+10,a3,Player A3,QB,3,Team Green,false
+11,b5,Player B5,RB,5,Team Gold,false
+12,a4,Player A4,QB,2,Team Blue,false
+13,c2,Player C2,WR,8,Team Red,true
+14,b6,Player B6,RB,1,Team Red,true
+15,b2,Player B2,RB,9,Team Blue,true
+16,c6,Player C6,WR,1,Team Blue,true
+17,c5,Player C5,WR,3,Team Green,true
+18,d2,Player D2,TE,1,Team Green,true
+19,c7,Player C7,WR,1,Team Gold,true
+20,b7,Player B7,RB,1,Team Gold,true
