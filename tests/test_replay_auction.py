@@ -4,17 +4,16 @@ import csv
 import hashlib
 import io
 import json
+import sys
 import tempfile
+import unittest
+from collections import Counter
 from contextlib import redirect_stderr
 from dataclasses import replace
-from collections import Counter
 from decimal import Decimal
 from itertools import combinations, permutations
-import unittest
-from unittest.mock import patch
-
-import sys
 from pathlib import Path
+from unittest.mock import patch
 
 # Run from a checkout without installing: put src/ on the import path.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))

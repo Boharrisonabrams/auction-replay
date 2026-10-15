@@ -23,13 +23,13 @@ import shlex
 from collections import Counter
 from contextlib import ExitStack
 from dataclasses import asdict, dataclass
-from functools import lru_cache
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_FLOOR
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, InvalidOperation
+from functools import lru_cache
 from pathlib import Path
 from statistics import median
-from time import perf_counter
 from tempfile import NamedTemporaryFile, TemporaryFile
+from time import perf_counter
 from unicodedata import category
 from urllib.parse import urlparse
 

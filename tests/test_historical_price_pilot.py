@@ -1,23 +1,23 @@
 """Small independent oracle and source-boundary checks for the historical pilot."""
 
-from dataclasses import replace
-from decimal import Decimal
-from itertools import combinations
-from unittest.mock import patch
-from collections import Counter
 import csv
 import hashlib
 import json
+import sys
 import tempfile
 import unittest
-import sys
+from collections import Counter
+from dataclasses import replace
+from decimal import Decimal
+from itertools import combinations
 from pathlib import Path
+from unittest.mock import patch
 
 # Run from a checkout without installing: put src/ on the import path.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from auction_replay import replay_auction as replay  # noqa: E402
 from auction_replay import historical_price_pilot as pilot  # noqa: E402
+from auction_replay import replay_auction as replay  # noqa: E402
 
 
 def check():

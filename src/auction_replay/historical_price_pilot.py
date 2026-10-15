@@ -7,11 +7,11 @@ evaluation, which uses neutral preseason ordering and known byes for all policie
 K/DEF production is excluded, with their roster places and future $1 costs kept.
 """
 
+import argparse
 import csv
 import hashlib
 import json
 import re
-import argparse
 import time
 from collections import Counter, defaultdict
 from dataclasses import asdict, replace

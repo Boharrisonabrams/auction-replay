@@ -1,20 +1,19 @@
 """Runnable check: buy useful bye coverage without changing the starting core."""
 
-from dataclasses import replace
-from decimal import Decimal
 import json
+import sys
 import tempfile
 import unittest
-from unittest.mock import patch
-
-import sys
+from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 # Run from a checkout without installing: put src/ on the import path.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from auction_replay import replay_auction as replay  # noqa: E402
 from auction_replay import bench_coverage as bench  # noqa: E402
+from auction_replay import replay_auction as replay  # noqa: E402
 
 
 def check():

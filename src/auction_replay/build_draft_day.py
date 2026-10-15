@@ -1,13 +1,13 @@
 """Build a private, offline roster worksheet from two user-exported Draft Sharks CSVs."""
 
-from pathlib import Path
-from datetime import datetime, timezone
 import argparse
 import csv
 import hashlib
 import json
 import math
 import re
+from datetime import UTC, datetime
+from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TEMPLATES = HERE.parents[1] / "templates"
@@ -72,7 +72,7 @@ def build(projections, market, output):
     data = dict(
         players=players,
         source=source,
-        captured=datetime.fromtimestamp(projections.stat().st_mtime, timezone.utc).isoformat(),
+        captured=datetime.fromtimestamp(projections.stat().st_mtime, UTC).isoformat(),
         initial=dict(
             version=1,
             source=source,

@@ -3,10 +3,10 @@
 import re
 import shutil
 import subprocess
-import unittest
-from tempfile import TemporaryDirectory
 import sys
+import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 # Run from a checkout without installing: put src/ on the import path.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))

@@ -10,7 +10,6 @@ from pathlib import Path
 
 from . import replay_auction as replay
 
-
 if __name__ == "__main__":
     auction = (
         Path(__file__).resolve().parents[2]

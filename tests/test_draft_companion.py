@@ -2,17 +2,16 @@
 
 import json
 import re
-import subprocess
-from dataclasses import replace
-from decimal import Decimal
-from copy import deepcopy
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
-from unittest.mock import patch
-
-import sys
+from copy import deepcopy
+from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 # Run from a checkout without installing: put src/ on the import path.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
