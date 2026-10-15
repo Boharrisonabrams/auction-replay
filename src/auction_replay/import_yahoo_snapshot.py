@@ -12,6 +12,7 @@ import re
 import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from .replay_auction import InputError, _decimal, _integer, _rows, _text, _timestamp
 
@@ -54,7 +55,7 @@ def _league(document, league_key, season):
         raise InputError("this importer requires an NFL league")
     if metadata.get("draft_status") != "postdraft":
         raise InputError("a completed draft is required for this historical importer")
-    combined = {}
+    combined: dict[str, Any] = {}
     for part in league[1:]:
         part = _object(part, "league subresource")
         if combined.keys() & part.keys():
@@ -66,7 +67,7 @@ def _league(document, league_key, season):
 def _settings(raw):
     if not isinstance(raw, list) or not raw:
         raise InputError("settings must be a nonempty list")
-    settings = {}
+    settings: dict[str, Any] = {}
     for part in raw:
         part = _object(part, "settings")
         if settings.keys() & part.keys():

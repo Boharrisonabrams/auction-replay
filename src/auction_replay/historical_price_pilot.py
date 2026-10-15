@@ -18,6 +18,7 @@ from dataclasses import asdict, replace
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 from . import replay_auction as replay
 
@@ -464,7 +465,7 @@ def recommend_joint(
             prices.update({pid: 1 for pid in prices if players[pid].position not in OFFENSE})
 
             def frontier(fixed, label, factor=Decimal(1), absences=()):
-                timing = {}
+                timing: dict[str, float] = {}
                 result = replay.completion_frontier(
                     fixed,
                     available - {n.player_id},
@@ -606,11 +607,11 @@ def evaluate_joint(records, players, rules, gsis, picks):
                         "policy unresolved or no feasible selected witness"
                         if any(v is None for v in pair)
                         else "missing selected weekly outcomes"
-                        if any(v[label] is None for v in pair)
+                        if any(v[label] is None for v in pair)  # type: ignore[index]  # None ruled out above
                         else None
                     )
                     row[f"{baseline}_{label}_delta"] = (
-                        None if reason else pair[0][label] - pair[1][label]
+                        None if reason else pair[0][label] - pair[1][label]  # type: ignore[index]  # reason is set for None
                     )
                     row[f"{baseline}_{label}_unmatched"] = reason
             rows.append(row)
@@ -661,6 +662,8 @@ def load_outcomes(players, gsis):
             raise replay.InputError("duplicate weekly player")
         stats[key] = row
     participants = {key[0] for key in stats}
+    core: dict[tuple[str, int], Decimal | None]
+    full: dict[tuple[str, int], Decimal | None]
     core, full = {}, {}
     for pid, player in players.items():
         if player.position not in OFFENSE:
@@ -692,7 +695,7 @@ def load_outcomes(players, gsis):
         values = [full.get((row["id"], week)) for week in range(1, 19)]
         if any(v is None for v in values):
             gaps.append(row["name"])
-        elif sum(values, Decimal(0)) != Decimal(row["points"]):
+        elif sum(values, Decimal(0)) != Decimal(row["points"]):  # type: ignore[type-var]  # no None here
             raise replay.InputError(f"Yahoo outcome reconciliation mismatch: {row['name']}")
         else:
             verified += 1
@@ -818,7 +821,7 @@ def main():
             args.relaxation_limit,
         )
         save_json(args.output_dir / "selection.json", metadata)
-        timings = []
+        timings: list[dict[str, Any]] = []
         records = recommend_joint(
             picks,
             rules,

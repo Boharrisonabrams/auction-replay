@@ -6,6 +6,7 @@ from collections import Counter
 from decimal import Decimal
 from pathlib import Path
 from statistics import mean, median
+from typing import Any
 
 SOURCE = (
     Path(__file__).resolve().parents[2]
@@ -17,7 +18,7 @@ SOURCE = (
 
 def read_rows():
     with SOURCE.open() as source:
-        rows = list(csv.DictReader(source))
+        rows: list[dict[str, Any]] = list(csv.DictReader(source))
     for row in rows:
         row["pick"] = int(row["pick"])
         row["salary"] = int(row["salary"])

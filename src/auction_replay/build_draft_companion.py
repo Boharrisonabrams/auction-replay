@@ -7,6 +7,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from . import historical_price_pilot as pilot
 from . import replay_auction as replay
@@ -344,7 +345,7 @@ def build_payload(picks, rules, players, frozen, weights=None, source_hashes=Non
             if n.pick not in selection["selected_picks"]
             else "evaluated"
         )
-        cases = {}
+        cases: dict[str, dict[str, Any]] = {}
         if disposition != "evaluated":
             reason = blocked or "outside predeclared measured nomination set"
             if (

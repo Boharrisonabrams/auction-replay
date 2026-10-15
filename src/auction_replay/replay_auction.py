@@ -296,7 +296,7 @@ def validate_manifest(manifest, data_path, rules, preseason=True, require_scorin
     mappings = manifest.get("identity_mappings")
     if not isinstance(mappings, list) or not mappings:
         raise InputError("identity mappings are missing")
-    crosswalk = {}
+    crosswalk: dict[str, str] = {}
     for mapping in mappings:
         if not isinstance(mapping, dict):
             raise InputError("invalid identity mapping")
@@ -875,6 +875,7 @@ def projected_total(
 
 def _prune_positional(table):
     """For equal roster counts, more cost with no score gain is dominated."""
+    best: dict[int, int]
     result, best = {}, {}
     for (count, cost), value in sorted(table.items()):
         if value[0] > best.get(count, -1):
@@ -941,7 +942,7 @@ def positional_frontier(
         | set(quotas)
         | ({"RB", "WR", "TE"} if "FLEX" in rules.starters else set())
     )
-    best = [None] * (max_budget + 1)
+    best: list[tuple[int, int, tuple[str, ...]] | None] = [None] * (max_budget + 1)
     tables = {}
     flexes = ("RB", "WR", "TE") if "FLEX" in rules.starters else (None,)
     transitions = 0
@@ -960,7 +961,7 @@ def positional_frontier(
             required = dict(quotas)
             if flex:
                 required[flex] = required.get(flex, 0) + 1
-            total = {(0, 0): (0, ())}
+            total: dict[tuple[int, int], tuple[int, tuple[str, ...]]] = {(0, 0): (0, ())}
             for pos in positions:
                 quota = required.get(pos, 0)
                 if (pos, quota) not in tables:
@@ -974,7 +975,7 @@ def positional_frontier(
                         for other in positions
                         if other != pos
                     )
-                    table = {(0, 0): (0, ())}
+                    table: dict[tuple[int, int], tuple[int, tuple[str, ...]]] = {(0, 0): (0, ())}
                     for k in group:
                         next_table = {} if k in fixed else table.copy()
                         for (count, cost), (score, roster) in table.items():
@@ -1002,7 +1003,7 @@ def positional_frontier(
                     tables[pos, quota] = _prune_positional(
                         {key: value for key, value in table.items() if key[0] >= quota}
                     )
-                next_total = {}
+                next_total: dict[tuple[int, int], tuple[int, tuple[str, ...]]] = {}
                 for (n1, c1), (s1, r1) in total.items():
                     for (n2, c2), (s2, r2) in tables[pos, quota].items():
                         transition()
@@ -1077,6 +1078,9 @@ def completion_frontier(
     costs = {key: _integer(prices[key], f"future price for {key}", 1) for key in candidates}
     weights, weeks = _forecast_weights(players, rules, nominee, forecast_factor, absent_weeks)
     candidates = tuple(sorted(candidates, key=lambda key: (-weights[key], key)))
+    lower: list[Decimal | None]
+    rosters: list[tuple[str, ...] | None]
+    spending: list[int | None]
     lower, rosters, spending = (
         [None] * (max_budget + 1),
         [None] * (max_budget + 1),
@@ -1216,9 +1220,10 @@ def completion_frontier(
     if timings is not None:
         finished = perf_counter()
         timings.update(
-            preprocessing_seconds=search_started - started,
-            search_seconds=finished - search_started,
-            total_seconds=finished - started,
+            # started and search_started are floats whenever timings is not None.
+            preprocessing_seconds=search_started - started,  # type: ignore[operator]
+            search_seconds=finished - search_started,  # type: ignore[operator]
+            total_seconds=finished - started,  # type: ignore[operator]
         )
     return BudgetFrontier(
         tuple(bounds),
@@ -1728,11 +1733,12 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
         policy_input_gaps=gaps,
     )
     recommendation_hash = hashlib.sha256(canonical_bytes(metadata) + b"\n")
+    row_counts: dict[str, Counter[str]]
     pair_summaries, row_counts = (
         {},
         {policy: Counter() for policy in ("static", "inflation", "roster")},
     )
-    reason_counts = Counter()
+    reason_counts: Counter[str] = Counter()
     evaluated_unknown = {"fixed_preseason": 0, "optimistic_hindsight": 0}
     final = final_state(picks, rules)
     frozen_actual = tuple((team.name, tuple(team.roster)) for team in final.teams)
@@ -1820,7 +1826,7 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
         actual_evaluations = (
             {name: evaluated(roster) for name, roster in frozen_actual} if players else {}
         )
-        pair_counts = Counter()
+        pair_counts: Counter[str] = Counter()
         for pair in pair_summaries.values():
             actions = pair["actions"]
             # A mixed grid remains inspectable in row counts and CSV. This hierarchy

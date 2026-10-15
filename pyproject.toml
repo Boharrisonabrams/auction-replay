@@ -54,3 +54,17 @@ select = ["E", "F", "I", "UP", "B"]
 "src/auction_replay/historical_price_pilot.py" = ["B023", "E501", "E731"]
 "src/auction_replay/replay_auction.py" = ["B008", "B905", "E501", "E731"]
 "tests/*.py" = ["B007", "B023", "B905", "E501", "E731"]
+
+[tool.mypy]
+python_version = "3.11"
+# No function carries annotations yet, so check_untyped_defs is what makes mypy read
+# function bodies. allow_redefinition accepts names that are reused for a new type,
+# such as a loop variable.
+check_untyped_defs = true
+allow_redefinition = true
+strict_equality = true
+extra_checks = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unused_configs = true
+warn_unreachable = true

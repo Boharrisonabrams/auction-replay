@@ -4,6 +4,7 @@ import json
 from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 from . import build_draft_companion as companion
 from . import historical_price_pilot as pilot
@@ -128,6 +129,7 @@ def evaluate(records, players, rules, gsis):
     offense_rules = replace(
         rules, starters=tuple(p for p in rules.starters if p in (*pilot.OFFENSE, "FLEX"))
     )
+    cache: dict[tuple[str, ...], dict[str, Any]]
     cache, rows = {}, []
     for row in records:
         if row["disposition"] != "evaluated":

@@ -8,6 +8,7 @@ import math
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 HERE = Path(__file__).resolve().parent
 TEMPLATES = HERE.parents[1] / "templates"
@@ -52,7 +53,7 @@ def build(projections, market, output):
         "Travis Kelce",
         "Rhamondre Stevenson",
     ]
-    bench = []
+    bench: list[str] = []
     for pos in ["K", "DEF", "RB", "RB", "WR", "WR", "QB"]:
         bench.append(
             next(
@@ -69,7 +70,7 @@ def build(projections, market, output):
     for i, n in [(1, "Kenneth Walker III"), (3, "Nico Collins"), (5, "Colston Loveland")]:
         second[i] = dict(name=n, cost=players[n]["market"] + 1, owned=False)
     source = hashlib.sha256(projections.read_bytes() + market.read_bytes()).hexdigest()
-    data = dict(
+    data: dict[str, Any] = dict(
         players=players,
         source=source,
         captured=datetime.fromtimestamp(projections.stat().st_mtime, UTC).isoformat(),
@@ -86,7 +87,7 @@ def build(projections, market, output):
             quote="",
         ),
     )
-    style = re.search(
+    style = re.search(  # type: ignore[index]  # the template has a style block
         r"<style>(.*?)</style>", (TEMPLATES / "draft-companion.html").read_text(), re.S
     )[1]
     html = (
