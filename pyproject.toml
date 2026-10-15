@@ -29,3 +29,14 @@ where = ["src"]
 # Each test file also runs on its own, for example: python3 -B tests/test_replay_auction.py
 # The modules resolve data/local/, docs/research/, and templates/ relative to the checkout,
 # so run them from a clone (PYTHONPATH=src, or an editable install), not from a built wheel.
+
+# Development tools only. Runtime dependencies above stay empty.
+[dependency-groups]
+dev = ["ruff", "mypy"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
