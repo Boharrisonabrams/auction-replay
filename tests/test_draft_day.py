@@ -1,4 +1,5 @@
 """Portable arithmetic and state-contract checks for the draft-day worksheet."""
+
 import re
 import shutil
 import subprocess
@@ -12,13 +13,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from auction_replay.build_draft_day import load  # noqa: E402
 
-TEMPLATES = Path(__file__).resolve().parents[1] / 'templates'
+TEMPLATES = Path(__file__).resolve().parents[1] / "templates"
 
 
 def check():
-    html = (TEMPLATES/'draft-day.html').read_text()
+    html = (TEMPLATES / "draft-day.html").read_text()
     core = re.search(r'<script id="calculation">(.*?)</script>', html, re.S)[1]
-    cases = r'''
+    cases = r"""
 const assert = require('node:assert/strict');
 const positions=['QB','RB','RB','WR','WR','TE','RB','K','DEF','RB','WR','QB','TE','WR'];
 const pool=Object.fromEntries(positions.map((pos,i)=>['p'+i,{pos,points:i<7?100:9999}]));
@@ -53,24 +54,34 @@ assert.throws(()=>{current=readState({...saved,source:'wrong'},'abc');});assert.
 assert.throws(()=>readState({...saved,plans:[]},'abc'));
 restored.quote='90';restored.confirmed=true;const undone=readState(restored,'abc');assert.equal(undone.quote,'');assert.equal(undone.confirmed,false);
 console.log('Draft-day calculation and backup checks passed');
-'''
-    subprocess.run(['node','-e',core+'\n'+cases],check=True)
+"""
+    subprocess.run(["node", "-e", core + "\n" + cases], check=True)
     with TemporaryDirectory() as directory:
-        source=Path(directory)/'source.csv'
-        source.write_text('Player,Pos,DS Proj\nExample,RB,200\n')
-        assert load(source,['Player','Pos','DS Proj'])[0]['Player']=='Example'
-        for content in ['Player,Pos\nExample,RB\n', 'Player,Pos,DS Proj\nExample,RB\n', 'Player,Pos,DS Proj\nExample,RB,200\nExample,RB,201\n']:
+        source = Path(directory) / "source.csv"
+        source.write_text("Player,Pos,DS Proj\nExample,RB,200\n")
+        assert load(source, ["Player", "Pos", "DS Proj"])[0]["Player"] == "Example"
+        for content in [
+            "Player,Pos\nExample,RB\n",
+            "Player,Pos,DS Proj\nExample,RB\n",
+            "Player,Pos,DS Proj\nExample,RB,200\nExample,RB,201\n",
+        ]:
             source.write_text(content)
-            try: load(source,['Player','Pos','DS Proj'])
-            except ValueError: pass
-            else: raise AssertionError('Malformed or ambiguous export was accepted')
-    print('Draft-day CSV validation checks passed')
+            try:
+                load(source, ["Player", "Pos", "DS Proj"])
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("Malformed or ambiguous export was accepted")
+    print("Draft-day CSV validation checks passed")
 
 
 class DraftDayChecks(unittest.TestCase):
-    @unittest.skipUnless(shutil.which('node'), 'Node.js is required for the worksheet calculation checks')
+    @unittest.skipUnless(
+        shutil.which("node"), "Node.js is required for the worksheet calculation checks"
+    )
     def test_draft_day(self):
         check()
 
 
-if __name__ == '__main__': check()
+if __name__ == "__main__":
+    check()

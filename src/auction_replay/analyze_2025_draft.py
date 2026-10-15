@@ -7,7 +7,12 @@ from decimal import Decimal
 from pathlib import Path
 from statistics import mean, median
 
-SOURCE = Path(__file__).resolve().parents[2] / "docs" / "research" / "2025-discount-double-check-auction.csv"
+SOURCE = (
+    Path(__file__).resolve().parents[2]
+    / "docs"
+    / "research"
+    / "2025-discount-double-check-auction.csv"
+)
 
 
 def read_rows():
@@ -42,18 +47,37 @@ def price_bands(rows):
     result = []
     for position in ("WR", "RB", "TE", "QB"):
         for low, high in ((1, 9), (10, 29), (30, 49), (50, 200)):
-            group = [row for row in rows if row["position"] == position
-                     and not row["keeper"] and low <= row["salary"] <= high]
+            group = [
+                row
+                for row in rows
+                if row["position"] == position
+                and not row["keeper"]
+                and low <= row["salary"] <= high
+            ]
             if group:
-                result.append({"position": position, "band": f"${low}–${high}",
-                               "players": len(group),
-                               "mean_salary": round(mean(row["salary"] for row in group), 2),
-                               "mean_points": round(mean(row["points"] for row in group), 2),
-                               "median_points": round(median(row["points"] for row in group), 2)})
+                result.append(
+                    {
+                        "position": position,
+                        "band": f"${low}–${high}",
+                        "players": len(group),
+                        "mean_salary": round(mean(row["salary"] for row in group), 2),
+                        "mean_points": round(mean(row["points"] for row in group), 2),
+                        "median_points": round(median(row["points"] for row in group), 2),
+                    }
+                )
     return result
 
 
 if __name__ == "__main__":
     rows = read_rows()
-    print(json.dumps({"checks": "passed", "selections": len(rows),
-                      "nonkeeper_price_bands": price_bands(rows)}, indent=2, default=str))
+    print(
+        json.dumps(
+            {
+                "checks": "passed",
+                "selections": len(rows),
+                "nonkeeper_price_bands": price_bands(rows),
+            },
+            indent=2,
+            default=str,
+        )
+    )

@@ -158,28 +158,50 @@ def load_rules(path, require_scoring=True):
     required = set(LeagueRules.__dataclass_fields__) | {"scoring_complete"}
     if required - data.keys():
         raise InputError(f"missing league rules: {sorted(required - data.keys())}")
-    complete = data["scoring_complete"] is True and isinstance(data["scoring"], dict) and bool(data["scoring"])
+    complete = (
+        data["scoring_complete"] is True
+        and isinstance(data["scoring"], dict)
+        and bool(data["scoring"])
+    )
     if require_scoring and not complete:
         raise InputError("complete scoring rules are unavailable")
-    values = {key: _integer(data[key], key, 1) for key in
-              ("season", "teams", "budget", "roster_size", "first_week", "last_week")}
+    values = {
+        key: _integer(data[key], key, 1)
+        for key in ("season", "teams", "budget", "roster_size", "first_week", "last_week")
+    }
     _timestamp(data["draft_at"], "draft_at")
     if _timestamp(data["draft_at"], "draft_at").year != values["season"]:
         raise InputError("draft year does not match season")
     starters = data["starters"]
-    if (not isinstance(starters, list) or not starters or
-            any(slot not in POSITIONS | {"FLEX"} for slot in starters) or
-            len(starters) > values["roster_size"] or values["budget"] < values["roster_size"] or
-            not 1 <= values["first_week"] <= values["last_week"] <= 17):
+    if (
+        not isinstance(starters, list)
+        or not starters
+        or any(slot not in POSITIONS | {"FLEX"} for slot in starters)
+        or len(starters) > values["roster_size"]
+        or values["budget"] < values["roster_size"]
+        or not 1 <= values["first_week"] <= values["last_week"] <= 17
+    ):
         raise InputError("incompatible roster, budget, or week rules")
-    scoring = (tuple(sorted((_text(key, "scoring category"), _decimal(value, key))
-                            for key, value in data["scoring"].items())) if complete else ())
-    return LeagueRules(**values, draft_at=data["draft_at"], starters=tuple(starters), scoring=scoring)
+    scoring = (
+        tuple(
+            sorted(
+                (_text(key, "scoring category"), _decimal(value, key))
+                for key, value in data["scoring"].items()
+            )
+        )
+        if complete
+        else ()
+    )
+    return LeagueRules(
+        **values, draft_at=data["draft_at"], starters=tuple(starters), scoring=scoring
+    )
 
 
 def scoring_hash(rules):
-    content = json.dumps([(key, str(value.normalize())) for key, value in sorted(rules.scoring)],
-                         separators=(",", ":"))
+    content = json.dumps(
+        [(key, str(value.normalize())) for key, value in sorted(rules.scoring)],
+        separators=(",", ":"),
+    )
     return hashlib.sha256(content.encode()).hexdigest()
 
 
@@ -199,10 +221,17 @@ def load_auction(path, rules=LeagueRules()):
         position = _text(row["position"], "position")
         if position not in POSITIONS:
             raise InputError(f"unknown position for {player_id}: {position}")
-        picks.append(AuctionPick(_integer(row["pick"], "pick", 1), player_id,
-                                 _text(row["name"], "name"), position,
-                                 _integer(row["salary"], "salary", 0 if keeper else 1, rules.budget),
-                                 _text(row["team"], "fantasy team"), keeper))
+        picks.append(
+            AuctionPick(
+                _integer(row["pick"], "pick", 1),
+                player_id,
+                _text(row["name"], "name"),
+                position,
+                _integer(row["salary"], "salary", 0 if keeper else 1, rules.budget),
+                _text(row["team"], "fantasy team"),
+                keeper,
+            )
+        )
     if [p.pick for p in picks] != list(range(1, len(picks) + 1)):
         raise InputError("auction pick sequence must be contiguous and ordered")
     counts = Counter(p.team for p in picks)
@@ -250,8 +279,11 @@ def validate_manifest(manifest, data_path, rules, preseason=True, require_scorin
         if not rules.scoring:
             raise InputError("league scoring rules are missing")
         coverage = manifest.get("scoring_coverage")
-        if (not isinstance(coverage, list) or any(not isinstance(key, str) for key in coverage) or
-                set(coverage) != {key for key, _ in rules.scoring}):
+        if (
+            not isinstance(coverage, list)
+            or any(not isinstance(key, str) for key in coverage)
+            or set(coverage) != {key for key, _ in rules.scoring}
+        ):
             raise InputError("source scoring coverage does not match complete league rules")
         if manifest.get("scoring_hash") != scoring_hash(rules):
             raise InputError("source scoring coefficients do not match league rules")
@@ -293,10 +325,14 @@ def load_forecasts(path, manifest, rules, drafted_ids):
         position = _text(row["position"], "forecast position")
         if position not in POSITIONS:
             raise InputError(f"unknown forecast position: {position}")
-        players[player_id] = Player(player_id, _text(row["name"], "forecast name"), position,
-                                    _text(row["nfl_team"], "NFL team"),
-                                    _integer(row["bye"], "bye", 1, 18),
-                                    _decimal(row["projected_points"], "projected points"))
+        players[player_id] = Player(
+            player_id,
+            _text(row["name"], "forecast name"),
+            position,
+            _text(row["nfl_team"], "NFL team"),
+            _integer(row["bye"], "bye", 1, 18),
+            _decimal(row["projected_points"], "projected points"),
+        )
     missing = set(drafted_ids) - players.keys()
     if missing:
         raise InputError(f"missing drafted players from forecast universe: {sorted(missing)}")
@@ -326,8 +362,11 @@ def load_weekly_outcomes(path, manifest, rules, player_ids):
     """Require observed zeros; absent records remain None; exclude Week 18."""
     crosswalk = validate_manifest(manifest, path, rules, preseason=False)
     mapped_ids = set(crosswalk.values())
-    outcomes = {(player_id, week): None for player_id in player_ids
-                for week in range(rules.first_week, rules.last_week + 1)}
+    outcomes = {
+        (player_id, week): None
+        for player_id in player_ids
+        for week in range(rules.first_week, rules.last_week + 1)
+    }
     seen = set()
     for row in _rows(path, ["player_id", "week", "points", "status"]):
         player_id = _text(row["player_id"], "weekly player ID")
@@ -344,7 +383,11 @@ def load_weekly_outcomes(path, manifest, rules, player_ids):
             raise InputError(f"unknown observation status: {player_id}, week {week}")
         if row["status"] == "missing" and row["points"] not in {"", None}:
             raise InputError(f"missing observation has points: {player_id}, week {week}")
-        points = None if row["status"] == "missing" else _decimal(row["points"], "verified weekly points")
+        points = (
+            None
+            if row["status"] == "missing"
+            else _decimal(row["points"], "verified weekly points")
+        )
         if key in outcomes:
             outcomes[key] = points
     return outcomes
@@ -398,12 +441,16 @@ def apply_sale(state, sale, rules):
     if len(team.roster) >= rules.roster_size or sale.salary > team.budget:
         raise InputError(f"observed purchase exceeds roster or budget: {sale.pick}")
     updated = TeamState(team.name, team.roster + (sale.player_id,), team.budget - sale.salary)
-    return AuctionState(tuple(updated if t.name == team.name else t for t in state.teams),
-                        state.sales if sale.keeper else state.sales + (sale,))
+    return AuctionState(
+        tuple(updated if t.name == team.name else t for t in state.teams),
+        state.sales if sale.keeper else state.sales + (sale,),
+    )
 
 
 def initial_state(picks, rules):
-    state = AuctionState(tuple(TeamState(name, (), rules.budget) for name in sorted({p.team for p in picks})))
+    state = AuctionState(
+        tuple(TeamState(name, (), rules.budget) for name in sorted({p.team for p in picks}))
+    )
     for keeper in sorted((p for p in picks if p.keeper), key=lambda p: p.player_id):
         state = apply_sale(state, keeper, rules)
     return state
@@ -463,8 +510,11 @@ def legal_capacity(team, nominee, players, available, rules):
         return 0, "insufficient reserve"
     remaining = set(available) - {nominee}
     needs = missing_starters(team.roster + (nominee,), players, rules)
-    if (len(needs) > slots - 1 or len(remaining) < slots - 1 or
-            not _covers((players[key].position for key in remaining), needs)):
+    if (
+        len(needs) > slots - 1
+        or len(remaining) < slots - 1
+        or not _covers((players[key].position for key in remaining), needs)
+    ):
         return 0, "positional infeasibility"
     return capacity, None
 
@@ -481,7 +531,9 @@ def reference_pool(state, players, values, rules, include_owned=False):
     """
     missing = set(players) - values.keys()
     if missing or state.owned - players.keys():
-        raise InputError(f"reference universe coverage missing: {sorted(missing | (state.owned - players.keys()))}")
+        raise InputError(
+            f"reference universe coverage missing: {sorted(missing | (state.owned - players.keys()))}"
+        )
     needs = []
     slots = 0
     for team in state.teams:
@@ -496,9 +548,18 @@ def reference_pool(state, players, values, rules, include_owned=False):
     selected = set()
     # Position quotas are disjoint; only FLEX can share a position category.
     for slot in [slot for slot in needs if slot != "FLEX"] + ["FLEX"] * needs.count("FLEX"):
-        selected.add(next(key for key in candidates if key not in selected and
-                          (players[key].position in {"RB", "WR", "TE"} if slot == "FLEX"
-                           else players[key].position == slot)))
+        selected.add(
+            next(
+                key
+                for key in candidates
+                if key not in selected
+                and (
+                    players[key].position in {"RB", "WR", "TE"}
+                    if slot == "FLEX"
+                    else players[key].position == slot
+                )
+            )
+        )
     for key in candidates:
         if len(selected) >= slots:
             break
@@ -512,20 +573,26 @@ def _rescale(values, available, pool, discretionary):
     excess = {key: max(Decimal(0), values[key] - 1) for key in available}
     denominator = sum((excess[key] for key in pool), Decimal(0))
     if denominator == 0:
-        return {key: Decimal(1) for key in sorted(available)}, ("zero discretionary denominator; $1-only estimate",)
+        return {key: Decimal(1) for key in sorted(available)}, (
+            "zero discretionary denominator; $1-only estimate",
+        )
     scale = Decimal(max(0, discretionary)) / denominator
     return {key: Decimal(1) + excess[key] * scale for key in sorted(available)}, ()
 
 
 def _pool_warnings(state, players, rules):
-    return tuple(f"{team.name}: historical starter coverage impossible; remaining market slots unrestricted"
-                 for team in state.teams
-                 if len(missing_starters(team.roster, players, rules)) > rules.roster_size - len(team.roster))
+    return tuple(
+        f"{team.name}: historical starter coverage impossible; remaining market slots unrestricted"
+        for team in state.teams
+        if len(missing_starters(team.roster, players, rules)) > rules.roster_size - len(team.roster)
+    )
 
 
 def rebase_reference(state, players, source_values, rules):
     pool = reference_pool(state, players, source_values, rules, include_owned=True)
-    estimates, warnings = _rescale(source_values, set(players), pool, rules.teams * (rules.budget - rules.roster_size))
+    estimates, warnings = _rescale(
+        source_values, set(players), pool, rules.teams * (rules.budget - rules.roster_size)
+    )
     return estimates, warnings + _pool_warnings(state, players, rules)
 
 
@@ -533,7 +600,9 @@ def inflation_prices(state, players, static_values, rules):
     """Rescale spendable cash: full-roster teams cannot contribute further bids."""
     pool = reference_pool(state, players, static_values, rules)
     slots = sum(rules.roster_size - len(team.roster) for team in state.teams)
-    discretionary = sum(team.budget for team in state.teams if len(team.roster) < rules.roster_size) - slots
+    discretionary = (
+        sum(team.budget for team in state.teams if len(team.roster) < rules.roster_size) - slots
+    )
     if discretionary < 0:
         raise InputError("league cannot reserve $1 per remaining roster place")
     estimates, warnings = _rescale(static_values, set(players) - state.owned, pool, discretionary)
@@ -553,7 +622,11 @@ def market_adjustment(prior_ratios):
     if any(ratio is None for ratio in prior_ratios):
         raise InputError("prior market estimate unavailable; pooled adjustment unresolved")
     count = len(prior_ratios)
-    return Decimal(1) if not count else Decimal(1) + Decimal(count) / (count + 20) * (median(prior_ratios) - 1)
+    return (
+        Decimal(1)
+        if not count
+        else Decimal(1) + Decimal(count) / (count + 20) * (median(prior_ratios) - 1)
+    )
 
 
 def future_prices(inflation, prior_ratios, multiplier=Decimal(1)):
@@ -561,8 +634,12 @@ def future_prices(inflation, prior_ratios, multiplier=Decimal(1)):
     if multiplier <= 0:
         raise InputError("future-price multiplier must be positive")
     adjustment = market_adjustment(prior_ratios)
-    return {key: max(1, int((value * adjustment * multiplier).to_integral_value(rounding=ROUND_CEILING)))
-            for key, value in sorted(inflation.items())}
+    return {
+        key: max(
+            1, int((value * adjustment * multiplier).to_integral_value(rounding=ROUND_CEILING))
+        )
+        for key, value in sorted(inflation.items())
+    }
 
 
 def _validate_auction_forecasts(picks, players):
@@ -582,13 +659,17 @@ def replay_markets(picks, players, source_values, rules):
     no sale is silently dropped from its history.
     """
     _validate_auction_forecasts(picks, players)
-    static, static_warnings = rebase_reference(initial_state(picks, rules), players, source_values, rules)
+    static, static_warnings = rebase_reference(
+        initial_state(picks, rules), players, source_values, rules
+    )
     prior_ratios = ()
     previous_prediction = None
     for nomination in replay_states(picks, rules):
         if nomination.state.sales:
             actual = nomination.state.sales[-1].salary
-            prior_ratios += (None if previous_prediction is None else Decimal(actual) / previous_prediction,)
+            prior_ratios += (
+                None if previous_prediction is None else Decimal(actual) / previous_prediction,
+            )
         warnings = static_warnings
         try:
             inflation, pool_warnings = inflation_prices(nomination.state, players, static, rules)
@@ -602,8 +683,13 @@ def replay_markets(picks, players, source_values, rules):
                 previous_prediction = future_prices(inflation, prior_ratios)[nomination.player_id]
             except InputError as error:
                 warnings += (str(error),)
-        yield MarketMoment(nomination, tuple(sorted(static.items())), tuple(sorted(inflation.items())),
-                           prior_ratios, warnings)
+        yield MarketMoment(
+            nomination,
+            tuple(sorted(static.items())),
+            tuple(sorted(inflation.items())),
+            prior_ratios,
+            warnings,
+        )
 
 
 @dataclass(frozen=True)
@@ -664,7 +750,9 @@ class NomineeComparison:
 
     @property
     def possible_ceiling(self):
-        return max((row.price for row in self.prices if row.decision in {"buy", "unresolved"}), default=0)
+        return max(
+            (row.price for row in self.prices if row.decision in {"buy", "unresolved"}), default=0
+        )
 
 
 @dataclass(frozen=True)
@@ -682,11 +770,16 @@ def _forecast_weights(players, rules, nominee, forecast_factor, absent_weeks):
         raise InputError("nominee forecast factor must be nonnegative")
     if nominee is not None and nominee not in players:
         raise InputError(f"unknown nominee: {nominee}")
-    if (not rules.starters or any(slot not in POSITIONS | {"FLEX"} for slot in rules.starters)
-            or not 1 <= rules.first_week <= rules.last_week <= 17
-            or len(rules.starters) > rules.roster_size):
+    if (
+        not rules.starters
+        or any(slot not in POSITIONS | {"FLEX"} for slot in rules.starters)
+        or not 1 <= rules.first_week <= rules.last_week <= 17
+        or len(rules.starters) > rules.roster_size
+    ):
         raise InputError("incompatible objective roster or week rules")
-    weeks = tuple(_integer(week, "absence week", rules.first_week, rules.last_week) for week in absent_weeks)
+    weeks = tuple(
+        _integer(week, "absence week", rules.first_week, rules.last_week) for week in absent_weeks
+    )
     if len(set(weeks)) != len(weeks):
         raise InputError("duplicate absence week")
     if weeks and (nominee is None or players[nominee].bye in weeks):
@@ -696,30 +789,50 @@ def _forecast_weights(players, rules, nominee, forecast_factor, absent_weeks):
         if key != player.player_id or player.position not in POSITIONS:
             raise InputError(f"invalid forecast identity or position: {key}")
         _integer(player.bye, "forecast bye", 1, 18)
-        weights[key] = _decimal(player.projected_points, "projected points") * (factor if key == nominee else 1)
+        weights[key] = _decimal(player.projected_points, "projected points") * (
+            factor if key == nominee else 1
+        )
     return weights, weeks
 
 
 def _projected_lineup(roster, players, weights, rules, week, nominee, absent_weeks):
-    available = sorted((key for key in roster if players[key].bye != week and weights[key] > 0
-                        and not (key == nominee and week in absent_weeks)),
-                       key=lambda key: (-weights[key], key))
+    available = sorted(
+        (
+            key
+            for key in roster
+            if players[key].bye != week
+            and weights[key] > 0
+            and not (key == nominee and week in absent_weeks)
+        ),
+        key=lambda key: (-weights[key], key),
+    )
     lineup = [None] * len(rules.starters)
     used = set()
     # Fixed positions are disjoint. Take their best players before assigning FLEX.
     for index in sorted(range(len(rules.starters)), key=lambda i: rules.starters[i] == "FLEX"):
         slot = rules.starters[index]
-        key = next((key for key in available if key not in used and
-                    (players[key].position in {"RB", "WR", "TE"} if slot == "FLEX"
-                     else players[key].position == slot)), None)
+        key = next(
+            (
+                key
+                for key in available
+                if key not in used
+                and (
+                    players[key].position in {"RB", "WR", "TE"}
+                    if slot == "FLEX"
+                    else players[key].position == slot
+                )
+            ),
+            None,
+        )
         lineup[index] = key
         if key is not None:
             used.add(key)
     return tuple(lineup)
 
 
-def projected_lineup(roster, players, rules, week, nominee=None,
-                     forecast_factor=Decimal(1), absent_weeks=()):
+def projected_lineup(
+    roster, players, rules, week, nominee=None, forecast_factor=Decimal(1), absent_weeks=()
+):
     """Return IDs aligned with starter slots, using only forecasts and known byes.
 
     Empty slots score zero; a manager may bench a nonpositive forecast. Equal
@@ -735,12 +848,25 @@ def projected_lineup(roster, players, rules, week, nominee=None,
 def _projected_total(roster, players, weights, rules, nominee, absent_weeks):
     # Sum the season-projection numerators before dividing, avoiding 17 repeated
     # divisions. Each scheduled game contributes projection / 17; a bye is zero.
-    return sum((weights[key] for week in range(rules.first_week, rules.last_week + 1)
-                for key in _projected_lineup(roster, players, weights, rules, week, nominee, absent_weeks)
-                if key is not None), Decimal(0)) / 17
+    return (
+        sum(
+            (
+                weights[key]
+                for week in range(rules.first_week, rules.last_week + 1)
+                for key in _projected_lineup(
+                    roster, players, weights, rules, week, nominee, absent_weeks
+                )
+                if key is not None
+            ),
+            Decimal(0),
+        )
+        / 17
+    )
 
 
-def projected_total(roster, players, rules, nominee=None, forecast_factor=Decimal(1), absent_weeks=()):
+def projected_total(
+    roster, players, rules, nominee=None, forecast_factor=Decimal(1), absent_weeks=()
+):
     if len(set(roster)) != len(roster) or set(roster) - players.keys():
         raise InputError("duplicate or unknown roster player")
     weights, weeks = _forecast_weights(players, rules, nominee, forecast_factor, absent_weeks)
@@ -757,8 +883,18 @@ def _prune_positional(table):
     return result
 
 
-def positional_frontier(fixed, candidates, prices, players, rules, max_budget,
-                        nominee=None, forecast_factor=Decimal(1), bench_credit=Decimal(0), transition_limit=None):
+def positional_frontier(
+    fixed,
+    candidates,
+    prices,
+    players,
+    rules,
+    max_budget,
+    nominee=None,
+    forecast_factor=Decimal(1),
+    bench_credit=Decimal(0),
+    transition_limit=None,
+):
     """Return raw millionth scores for the complete-roster no-bye objective.
 
     With zero bench credit, a completed frontier supplies the maximum possible
@@ -770,7 +906,11 @@ def positional_frontier(fixed, candidates, prices, players, rules, max_budget,
     if len(set(fixed)) != len(fixed) or len(set(candidates)) != len(candidates):
         raise InputError("duplicate completion identity")
     fixed, candidates = set(fixed), set(candidates)
-    if fixed & candidates or (fixed | candidates) - players.keys() or len(fixed) > rules.roster_size:
+    if (
+        fixed & candidates
+        or (fixed | candidates) - players.keys()
+        or len(fixed) > rules.roster_size
+    ):
         raise InputError("invalid completion identities")
     max_budget = _integer(max_budget, "budget")
     if set(candidates) - prices.keys():
@@ -780,7 +920,11 @@ def positional_frontier(fixed, candidates, prices, players, rules, max_budget,
     weights, _ = _forecast_weights(players, rules, nominee, forecast_factor, ())
     if bench_credit not in (Decimal(0), Decimal(".125"), Decimal(".25")):
         raise InputError("unsupported bench-credit sensitivity")
-    transition_limit = None if transition_limit is None else _integer(transition_limit, "relaxation transition limit")
+    transition_limit = (
+        None
+        if transition_limit is None
+        else _integer(transition_limit, "relaxation transition limit")
+    )
     fallback = None
     # Preserve the pilot's integer-millionth and backup-credit arithmetic.
     if any((v * 1000000) != (v * 1000000).to_integral_value() for v in weights.values()):
@@ -792,8 +936,11 @@ def positional_frontier(fixed, candidates, prices, players, rules, max_budget,
     if fallback:
         return PositionalFrontier((None,) * (max_budget + 1), 0, transition_limit, False, fallback)
     # An absent FLEX category must still enforce its quota through an empty table.
-    positions = sorted({p.position for p in players.values()} | set(quotas)
-                       | ({"RB", "WR", "TE"} if "FLEX" in rules.starters else set()))
+    positions = sorted(
+        {p.position for p in players.values()}
+        | set(quotas)
+        | ({"RB", "WR", "TE"} if "FLEX" in rules.starters else set())
+    )
     best = [None] * (max_budget + 1)
     tables = {}
     flexes = ("RB", "WR", "TE") if "FLEX" in rules.starters else (None,)
@@ -817,10 +964,16 @@ def positional_frontier(fixed, candidates, prices, players, rules, max_budget,
             for pos in positions:
                 quota = required.get(pos, 0)
                 if (pos, quota) not in tables:
-                    group = sorted((k for k in fixed | candidates if players[k].position == pos), key=lambda k: (-points[k], k))
+                    group = sorted(
+                        (k for k in fixed | candidates if players[k].position == pos),
+                        key=lambda k: (-points[k], k),
+                    )
                     # Use base quotas so cached tables remain valid across FLEX assignments.
-                    limit = rules.roster_size - sum(max(quotas.get(other, 0), sum(players[k].position == other for k in fixed))
-                                                   for other in positions if other != pos)
+                    limit = rules.roster_size - sum(
+                        max(quotas.get(other, 0), sum(players[k].position == other for k in fixed))
+                        for other in positions
+                        if other != pos
+                    )
                     table = {(0, 0): (0, ())}
                     for k in group:
                         next_table = {} if k in fixed else table.copy()
@@ -829,13 +982,26 @@ def positional_frontier(fixed, candidates, prices, players, rules, max_budget,
                             new = (count + 1, cost + costs[k])
                             if new[0] > limit or new[1] > max_budget:
                                 continue
-                            backup = int(points[k] * bench_credit) if count == quota and pos in {"QB", "RB", "WR", "TE"} else 0
-                            value = (score + (points[k] if count < quota else backup), roster + (k,))
+                            backup = (
+                                int(points[k] * bench_credit)
+                                if count == quota and pos in {"QB", "RB", "WR", "TE"}
+                                else 0
+                            )
+                            value = (
+                                score + (points[k] if count < quota else backup),
+                                roster + (k,),
+                            )
                             old = next_table.get(new)
-                            if old is None or value[0] > old[0] or (value[0] == old[0] and value[1] < old[1]):
+                            if (
+                                old is None
+                                or value[0] > old[0]
+                                or (value[0] == old[0] and value[1] < old[1])
+                            ):
                                 next_table[new] = value
                         table = next_table
-                    tables[pos, quota] = _prune_positional({key: value for key, value in table.items() if key[0] >= quota})
+                    tables[pos, quota] = _prune_positional(
+                        {key: value for key, value in table.items() if key[0] >= quota}
+                    )
                 next_total = {}
                 for (n1, c1), (s1, r1) in total.items():
                     for (n2, c2), (s2, r2) in tables[pos, quota].items():
@@ -845,7 +1011,11 @@ def positional_frontier(fixed, candidates, prices, players, rules, max_budget,
                             continue
                         value = s1 + s2, r1 + r2
                         old = next_total.get(key)
-                        if old is None or value[0] > old[0] or (value[0] == old[0] and value[1] < old[1]):
+                        if (
+                            old is None
+                            or value[0] > old[0]
+                            or (value[0] == old[0] and value[1] < old[1])
+                        ):
                             next_total[key] = value
                 total = _prune_positional(next_total)
             for (count, cost), (score, roster) in total.items():
@@ -861,12 +1031,25 @@ def positional_frontier(fixed, candidates, prices, players, rules, max_budget,
         old, new = best[budget - 1], best[budget]
         if old is not None and (new is None or (-old[0], old[1:]) < (-new[0], new[1:])):
             best[budget] = old
-    return PositionalFrontier(tuple(best), transitions, transition_limit, fallback is None, fallback)
+    return PositionalFrontier(
+        tuple(best), transitions, transition_limit, fallback is None, fallback
+    )
 
 
-def completion_frontier(fixed, candidates, prices, players, rules, max_budget,
-                        work_limit=2000, nominee=None, forecast_factor=Decimal(1), absent_weeks=(),
-                        relaxation_limit=DEFAULT_RELAXATION_LIMIT, timings=None):
+def completion_frontier(
+    fixed,
+    candidates,
+    prices,
+    players,
+    rules,
+    max_budget,
+    work_limit=2000,
+    nominee=None,
+    forecast_factor=Decimal(1),
+    absent_weeks=(),
+    relaxation_limit=DEFAULT_RELAXATION_LIMIT,
+    timings=None,
+):
     """Bound complete-roster production at every integer completion budget.
 
     Search nodes and positional-relaxation transitions have separate limits.
@@ -880,8 +1063,12 @@ def completion_frontier(fixed, candidates, prices, players, rules, max_budget,
     work_limit = _integer(work_limit, "search work limit", 1)
     relaxation_limit = _integer(relaxation_limit, "relaxation transition limit")
     fixed, candidates = tuple(fixed), tuple(candidates)
-    if (len(set(fixed)) != len(fixed) or len(set(candidates)) != len(candidates)
-            or set(fixed) & set(candidates) or (set(fixed) | set(candidates)) - players.keys()):
+    if (
+        len(set(fixed)) != len(fixed)
+        or len(set(candidates)) != len(candidates)
+        or set(fixed) & set(candidates)
+        or (set(fixed) | set(candidates)) - players.keys()
+    ):
         raise InputError("duplicate, overlapping, or unknown completion players")
     if len(fixed) > rules.roster_size:
         raise InputError("fixed roster exceeds roster size")
@@ -890,14 +1077,21 @@ def completion_frontier(fixed, candidates, prices, players, rules, max_budget,
     costs = {key: _integer(prices[key], f"future price for {key}", 1) for key in candidates}
     weights, weeks = _forecast_weights(players, rules, nominee, forecast_factor, absent_weeks)
     candidates = tuple(sorted(candidates, key=lambda key: (-weights[key], key)))
-    lower, rosters, spending = [None] * (max_budget + 1), [None] * (max_budget + 1), [None] * (max_budget + 1)
+    lower, rosters, spending = (
+        [None] * (max_budget + 1),
+        [None] * (max_budget + 1),
+        [None] * (max_budget + 1),
+    )
 
     def record(roster, cost):
         score = _projected_total(roster, players, weights, rules, nominee, weeks)
         frozen = tuple(sorted(roster))
         for budget in range(cost, max_budget + 1):
-            if (lower[budget] is None or score > lower[budget]
-                    or (score == lower[budget] and (cost, frozen) < (spending[budget], rosters[budget]))):
+            if (
+                lower[budget] is None
+                or score > lower[budget]
+                or (score == lower[budget] and (cost, frozen) < (spending[budget], rosters[budget]))
+            ):
                 lower[budget], rosters[budget], spending[budget] = score, frozen, cost
 
     # Both branches first construct a cheap feasible incumbent. This does not
@@ -906,9 +1100,19 @@ def completion_frontier(fixed, candidates, prices, players, rules, max_budget,
     cheapest = sorted(candidates, key=lambda key: (costs[key], key))
     seed = list(fixed)
     for slot in sorted(needs, key=lambda slot: slot == "FLEX"):
-        key = next((key for key in cheapest if key not in seed and
-                    (players[key].position in {"RB", "WR", "TE"} if slot == "FLEX"
-                     else players[key].position == slot)), None)
+        key = next(
+            (
+                key
+                for key in cheapest
+                if key not in seed
+                and (
+                    players[key].position in {"RB", "WR", "TE"}
+                    if slot == "FLEX"
+                    else players[key].position == slot
+                )
+            ),
+            None,
+        )
         if key is not None:
             seed.append(key)
     for key in cheapest:
@@ -921,9 +1125,17 @@ def completion_frontier(fixed, candidates, prices, players, rules, max_budget,
 
     initial_upper = _projected_total(fixed + candidates, players, weights, rules, nominee, weeks)
     relaxation_players = {key: players[key] for key in fixed + candidates}
-    relaxation = positional_frontier(fixed, candidates, costs, relaxation_players, rules, max_budget,
-                                     nominee if nominee in relaxation_players else None, forecast_factor,
-                                     transition_limit=relaxation_limit)
+    relaxation = positional_frontier(
+        fixed,
+        candidates,
+        costs,
+        relaxation_players,
+        rules,
+        max_budget,
+        nominee if nominee in relaxation_players else None,
+        forecast_factor,
+        transition_limit=relaxation_limit,
+    )
     root_upper = [initial_upper] * (max_budget + 1)
     seen_seeds = set()
     for budget, entry in enumerate(relaxation.entries):
@@ -936,7 +1148,9 @@ def completion_frontier(fixed, candidates, prices, players, rules, max_budget,
                 # Every weekly lineup is bounded by the same roster's best
                 # no-bye lineup. Do not use the pilot's rounded 16/17 score.
                 maximum = Decimal(raw) / 1000000
-                root_upper[budget] = min(initial_upper, (rules.last_week - rules.first_week + 1) * maximum / 17)
+                root_upper[budget] = min(
+                    initial_upper, (rules.last_week - rules.first_week + 1) * maximum / 17
+                )
         elif relaxation.complete:
             root_upper[budget] = None  # Only a completed relaxation can prove this.
     search_started = perf_counter() if timings is not None else None
@@ -950,18 +1164,25 @@ def completion_frontier(fixed, candidates, prices, players, rules, max_budget,
         slots = rules.roster_size - len(roster)
         remaining = candidates[index:]
         needs = missing_starters(roster, players, rules)
-        if (len(remaining) < slots or len(needs) > slots
-                or not _covers((players[key].position for key in remaining), needs)):
+        if (
+            len(remaining) < slots
+            or len(needs) > slots
+            or not _covers((players[key].position for key in remaining), needs)
+        ):
             continue
         minimum = cost + sum(sorted(costs[key] for key in remaining)[:slots])
         if minimum > max_budget:
             continue
         # Owning every remaining player relaxes both cost and roster-size limits.
-        upper = min(inherited_upper,
-                    _projected_total(roster + remaining, players, weights, rules, nominee, weeks))
-        if all(root_upper[budget] is None or
-               (lower[budget] is not None and lower[budget] >= min(upper, root_upper[budget]))
-               for budget in range(minimum, max_budget + 1)):
+        upper = min(
+            inherited_upper,
+            _projected_total(roster + remaining, players, weights, rules, nominee, weeks),
+        )
+        if all(
+            root_upper[budget] is None
+            or (lower[budget] is not None and lower[budget] >= min(upper, root_upper[budget]))
+            for budget in range(minimum, max_budget + 1)
+        ):
             continue
         if not slots:
             record(roster, cost)
@@ -970,8 +1191,9 @@ def completion_frontier(fixed, candidates, prices, players, rules, max_budget,
         # LIFO visits the higher-forecast inclusion first; stable IDs break ties.
         stack.append((index + 1, roster, cost, minimum, upper))
         added_cost = cost + costs[key]
-        stack.append((index + 1, roster + (key,), added_cost,
-                      max(minimum, added_cost + slots - 1), upper))
+        stack.append(
+            (index + 1, roster + (key,), added_cost, max(minimum, added_cost + slots - 1), upper)
+        )
     upper = lower.copy()
     for _, _, _, minimum, pending_upper in stack:
         for budget in range(minimum, max_budget + 1):
@@ -981,21 +1203,46 @@ def completion_frontier(fixed, candidates, prices, players, rules, max_budget,
     bounds = []
     for budget, (lo, hi) in enumerate(zip(lower, upper)):
         status = "infeasible" if hi is None else "optimal" if lo == hi else "unresolved"
-        reason = ("no feasible complete roster" if status == "infeasible" else
-                  "search work limit; no feasible incumbent" if lo is None else
-                  "search work limit; bounds overlap" if status == "unresolved" else None)
+        reason = (
+            "no feasible complete roster"
+            if status == "infeasible"
+            else "search work limit; no feasible incumbent"
+            if lo is None
+            else "search work limit; bounds overlap"
+            if status == "unresolved"
+            else None
+        )
         bounds.append(RosterBound(lo, hi, rosters[budget], spending[budget], status, reason))
     if timings is not None:
         finished = perf_counter()
-        timings.update(preprocessing_seconds=search_started - started,
-                       search_seconds=finished - search_started, total_seconds=finished - started)
-    return BudgetFrontier(tuple(bounds), nodes, work_limit, bool(stack), relaxation.transitions,
-                          relaxation_limit, relaxation.complete, relaxation.fallback)
+        timings.update(
+            preprocessing_seconds=search_started - started,
+            search_seconds=finished - search_started,
+            total_seconds=finished - started,
+        )
+    return BudgetFrontier(
+        tuple(bounds),
+        nodes,
+        work_limit,
+        bool(stack),
+        relaxation.transitions,
+        relaxation_limit,
+        relaxation.complete,
+        relaxation.fallback,
+    )
 
 
-def compare_nominee(nomination, team_name, players, prices, rules, work_limit=2000,
-                    forecast_factor=Decimal(1), absent_weeks=(),
-                    relaxation_limit=DEFAULT_RELAXATION_LIMIT):
+def compare_nominee(
+    nomination,
+    team_name,
+    players,
+    prices,
+    rules,
+    work_limit=2000,
+    forecast_factor=Decimal(1),
+    absent_weeks=(),
+    relaxation_limit=DEFAULT_RELAXATION_LIMIT,
+):
     """Solve each branch once, then compare all legal purchase prices."""
     state, nominee = nomination.state, nomination.player_id
     if nominee not in players or state.owned - players.keys():
@@ -1006,10 +1253,17 @@ def compare_nominee(nomination, team_name, players, prices, rules, work_limit=20
     if reason:
         return NomineeComparison(capacity, reason, None, None, ())
     candidates = available - {nominee}
-    arguments = dict(prices=prices, players=players, rules=rules, max_budget=team.budget,
-                     work_limit=work_limit, nominee=nominee,
-                     forecast_factor=forecast_factor, absent_weeks=absent_weeks,
-                     relaxation_limit=relaxation_limit)
+    arguments = dict(
+        prices=prices,
+        players=players,
+        rules=rules,
+        max_budget=team.budget,
+        work_limit=work_limit,
+        nominee=nominee,
+        forecast_factor=forecast_factor,
+        absent_weeks=absent_weeks,
+        relaxation_limit=relaxation_limit,
+    )
     buy = completion_frontier(team.roster + (nominee,), candidates, **arguments)
     passing = completion_frontier(team.roster, candidates, **arguments)
     return _compare_frontiers(capacity, team.budget, buy, passing)
@@ -1020,21 +1274,32 @@ def _compare_frontiers(capacity, budget, buy, passing):
     for price in range(1, capacity + 1):
         bought, passed = buy.bounds[budget - price], passing.bounds[budget]
         if bought.upper is None:
-            decision, why = (("infeasible", "neither branch can complete the roster") if passed.upper is None
-                             else ("pass", "buy branch cannot complete the roster") if passed.lower is not None
-                             else ("unresolved", "buy completion infeasible; pass feasibility unresolved"))
+            decision, why = (
+                ("infeasible", "neither branch can complete the roster")
+                if passed.upper is None
+                else ("pass", "buy branch cannot complete the roster")
+                if passed.lower is not None
+                else ("unresolved", "buy completion infeasible; pass feasibility unresolved")
+            )
         elif bought.lower is not None and (passed.upper is None or bought.lower > passed.upper):
             decision, why = "buy", "buy lower bound exceeds pass upper bound"
         elif passed.lower is not None and bought.upper <= passed.lower:
-            decision, why = "pass", "buy upper bound does not exceed pass lower bound; equality passes"
+            decision, why = (
+                "pass",
+                "buy upper bound does not exceed pass lower bound; equality passes",
+            )
         else:
-            decision, why = "unresolved", "search work limit; comparison bounds overlap or lack a feasible incumbent"
+            decision, why = (
+                "unresolved",
+                "search work limit; comparison bounds overlap or lack a feasible incumbent",
+            )
         rows.append(PriceComparison(price, bought, passed, decision, why))
     return NomineeComparison(capacity, None, buy, passing, tuple(rows))
 
 
-def nominee_scenarios(moment, team_name, players, rules, work_limit=2000,
-                      relaxation_limit=DEFAULT_RELAXATION_LIMIT):
+def nominee_scenarios(
+    moment, team_name, players, rules, work_limit=2000, relaxation_limit=DEFAULT_RELAXATION_LIMIT
+):
     """Cross three performance cases with 0.8/1.0/1.2 future-price stresses.
 
     The absence protocol predeclares the first two non-bye evaluation weeks.
@@ -1043,24 +1308,48 @@ def nominee_scenarios(moment, team_name, players, rules, work_limit=2000,
     nominee = moment.nomination.player_id
     if nominee not in players:
         raise InputError(f"unknown nominee: {nominee}")
-    weeks = tuple(week for week in range(rules.first_week, rules.last_week + 1)
-                  if week != players[nominee].bye)[:2]
+    weeks = tuple(
+        week
+        for week in range(rules.first_week, rules.last_week + 1)
+        if week != players[nominee].bye
+    )[:2]
     if len(weeks) != 2:
         raise InputError("two non-bye sensitivity weeks are unavailable")
-    cases = (("neutral", Decimal(1), ()), ("forecast_minus_20_percent", Decimal("0.8"), ()),
-             ("two_non_bye_absences", Decimal(1), weeks))
+    cases = (
+        ("neutral", Decimal(1), ()),
+        ("forecast_minus_20_percent", Decimal("0.8"), ()),
+        ("two_non_bye_absences", Decimal(1), weeks),
+    )
     result = []
     for price_factor in (Decimal("0.8"), Decimal(1), Decimal("1.2")):
         prices = future_prices(dict(moment.inflation), moment.prior_ratios, price_factor)
-        neutral = compare_nominee(moment.nomination, team_name, players, prices, rules, work_limit,
-                                  relaxation_limit=relaxation_limit)
+        neutral = compare_nominee(
+            moment.nomination,
+            team_name,
+            players,
+            prices,
+            rules,
+            work_limit,
+            relaxation_limit=relaxation_limit,
+        )
         for name, factor, absences in cases:
             comparison = neutral
             if name != "neutral" and neutral.reason is None:
                 team = moment.nomination.state.team(team_name)
                 candidates = set(players) - moment.nomination.state.owned - {nominee}
-                buy = completion_frontier(team.roster + (nominee,), candidates, prices, players,
-                    rules, team.budget, work_limit, nominee, factor, absences, relaxation_limit)
+                buy = completion_frontier(
+                    team.roster + (nominee,),
+                    candidates,
+                    prices,
+                    players,
+                    rules,
+                    team.budget,
+                    work_limit,
+                    nominee,
+                    factor,
+                    absences,
+                    relaxation_limit,
+                )
                 # Passing excludes the nominee; only the price factor changes its frontier.
                 comparison = _compare_frontiers(neutral.capacity, team.budget, buy, neutral.passing)
             result.append(NomineeScenario(name, price_factor, factor, absences, comparison))
@@ -1069,7 +1358,8 @@ def nominee_scenarios(moment, team_name, players, rules, work_limit=2000,
 
 # Outcome columns are appended only after the recommendation spool is frozen.
 EVALUATION_FIELDS = ("buy_evaluation", "pass_evaluation")
-DECISION_FIELDS = tuple("pick player_id player_name team budget held_roster room_state state_sha256 price scenario "
+DECISION_FIELDS = tuple(
+    "pick player_id player_name team budget held_roster room_state state_sha256 price scenario "
     "price_factor forecast_factor absent_weeks capacity source_reference static_estimate inflation_estimate "
     "static_ceiling inflation_ceiling static_action inflation_action roster_action static_reason inflation_reason reason "
     "neutral_supported_ceiling neutral_possible_ceiling scenario_supported_min scenario_supported_max "
@@ -1078,13 +1368,18 @@ DECISION_FIELDS = tuple("pick player_id player_name team budget held_roster room
     "buy_lower buy_upper buy_roster buy_future_cost buy_total_cost buy_status buy_reason buy_nodes buy_exhausted "
     "pass_lower pass_upper pass_roster pass_future_cost pass_total_cost pass_status pass_reason pass_nodes pass_exhausted "
     "buy_relaxation_transitions buy_relaxation_limit buy_relaxation_complete buy_relaxation_fallback "
-    "pass_relaxation_transitions pass_relaxation_limit pass_relaxation_complete pass_relaxation_fallback"
-    .split())
+    "pass_relaxation_transitions pass_relaxation_limit pass_relaxation_complete pass_relaxation_fallback".split()
+)
 
 
 def canonical_bytes(value):
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
-                      default=lambda item: str(item) if isinstance(item, Decimal) else asdict(item)).encode()
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=lambda item: str(item) if isinstance(item, Decimal) else asdict(item),
+    ).encode()
 
 
 def policy_action(price, ceiling, bought, passed):
@@ -1092,7 +1387,12 @@ def policy_action(price, ceiling, bought, passed):
     chosen = bought if price <= ceiling else passed
     action = "supported" if price <= ceiling else "pass"
     if chosen.roster is not None:
-        return action, "price within ceiling; feasible buy incumbent" if action == "supported" else "price exceeds ceiling; feasible pass incumbent"
+        return (
+            action,
+            "price within ceiling; feasible buy incumbent"
+            if action == "supported"
+            else "price exceeds ceiling; feasible pass incumbent",
+        )
     if chosen.upper is not None:
         return "search-unresolved", "chosen branch has no feasible incumbent within search limit"
     if action == "supported" and passed.roster is not None:
@@ -1119,7 +1419,9 @@ def decision_rows(picks, rules, players=None, references=None, gaps=(), work_lim
     work_limit = _integer(work_limit, "search work limit", 1)
     positions = {pick.player_id: pick for pick in picks}
     if players is None or references is None:
-        moments = (MarketMoment(nomination, (), (), (), ()) for nomination in replay_states(picks, rules))
+        moments = (
+            MarketMoment(nomination, (), (), (), ()) for nomination in replay_states(picks, rules)
+        )
     else:
         # Initial pool validation can fail before the generator yields any state.
         try:
@@ -1128,13 +1430,18 @@ def decision_rows(picks, rules, players=None, references=None, gaps=(), work_lim
         except InputError as error:
             gaps = tuple(gaps) + (str(error),)
             players = references = None
-            moments = (MarketMoment(nomination, (), (), (), ()) for nomination in replay_states(picks, rules))
+            moments = (
+                MarketMoment(nomination, (), (), (), ())
+                for nomination in replay_states(picks, rules)
+            )
         else:
             moments = replay_markets(picks, players, references, rules)
     for moment in moments:
         nomination = moment.nomination
         state = nomination.state
-        room = dict(teams=[asdict(team) for team in state.teams], completed_sale_count=len(state.sales))
+        room = dict(
+            teams=[asdict(team) for team in state.teams], completed_sale_count=len(state.sales)
+        )
         state_hash = hashlib.sha256(canonical_bytes(asdict(state))).hexdigest()
         nominee = nomination.player_id
         if players is not None and references is not None:
@@ -1142,64 +1449,131 @@ def decision_rows(picks, rules, players=None, references=None, gaps=(), work_lim
             inflation = dict(moment.inflation)
             available = set(players) - state.owned
         for team in state.teams:
-            base = dict(pick=nomination.pick, player_id=nominee, player_name=positions[nominee].name,
-                        team=team.name, budget=team.budget, held_roster=team.roster,
-                        room_state=room, state_sha256=state_hash, work_limit=work_limit,
-                        prior_ratios=moment.prior_ratios, warnings=moment.warnings)
+            base = dict(
+                pick=nomination.pick,
+                player_id=nominee,
+                player_name=positions[nominee].name,
+                team=team.name,
+                budget=team.budget,
+                held_roster=team.roster,
+                room_state=room,
+                state_sha256=state_hash,
+                work_limit=work_limit,
+                prior_ratios=moment.prior_ratios,
+                warnings=moment.warnings,
+            )
             reason = _structural_rejection(team, nominee, positions, rules)
             action = "infeasible" if reason else "missing-data"
             scenarios = None
             if reason is None and players is not None and references is not None:
                 try:
-                    static_ceiling, reason = baseline_ceiling(static, team, nominee, players, available, rules)
-                    inflation_ceiling, reason2 = baseline_ceiling(inflation, team, nominee, players, available, rules)
+                    static_ceiling, reason = baseline_ceiling(
+                        static, team, nominee, players, available, rules
+                    )
+                    inflation_ceiling, reason2 = baseline_ceiling(
+                        inflation, team, nominee, players, available, rules
+                    )
                     reason = reason or reason2
                     if reason:
                         action = "infeasible"
                     else:
                         scenarios = nominee_scenarios(moment, team.name, players, rules, work_limit)
-                        base.update(source_reference=references[nominee], static_estimate=static[nominee],
-                                    inflation_estimate=inflation[nominee], static_ceiling=static_ceiling,
-                                    inflation_ceiling=inflation_ceiling)
+                        base.update(
+                            source_reference=references[nominee],
+                            static_estimate=static[nominee],
+                            inflation_estimate=inflation[nominee],
+                            static_ceiling=static_ceiling,
+                            inflation_ceiling=inflation_ceiling,
+                        )
                 except InputError as error:
                     reason, action = str(error), "missing-data"
             if scenarios is None:
-                reason = reason or "; ".join(gaps) or "accepted forecast and reference inputs unavailable"
-                yield dict(base, price=None, reason=reason, roster_action=action,
-                           static_action=action, inflation_action=action)
+                reason = (
+                    reason
+                    or "; ".join(gaps)
+                    or "accepted forecast and reference inputs unavailable"
+                )
+                yield dict(
+                    base,
+                    price=None,
+                    reason=reason,
+                    roster_action=action,
+                    static_action=action,
+                    inflation_action=action,
+                )
                 continue
-            neutral = next(case for case in scenarios if case.name == "neutral" and case.price_factor == 1)
+            neutral = next(
+                case for case in scenarios if case.name == "neutral" and case.price_factor == 1
+            )
             supported = [case.comparison.supported_ceiling for case in scenarios]
             possible = [case.comparison.possible_ceiling for case in scenarios]
-            price_disagreements = [len({case.comparison.prices[i].decision for case in scenarios}) > 1
-                                   for i in range(neutral.comparison.capacity)]
-            base.update(capacity=neutral.comparison.capacity,
-                        neutral_supported_ceiling=neutral.comparison.supported_ceiling,
-                        neutral_possible_ceiling=neutral.comparison.possible_ceiling,
-                        scenario_supported_min=min(supported), scenario_supported_max=max(supported),
-                        scenario_possible_min=min(possible), scenario_possible_max=max(possible),
-                        scenario_disagreement=any(price_disagreements))
+            price_disagreements = [
+                len({case.comparison.prices[i].decision for case in scenarios}) > 1
+                for i in range(neutral.comparison.capacity)
+            ]
+            base.update(
+                capacity=neutral.comparison.capacity,
+                neutral_supported_ceiling=neutral.comparison.supported_ceiling,
+                neutral_possible_ceiling=neutral.comparison.possible_ceiling,
+                scenario_supported_min=min(supported),
+                scenario_supported_max=max(supported),
+                scenario_possible_min=min(possible),
+                scenario_possible_max=max(possible),
+                scenario_disagreement=any(price_disagreements),
+            )
             for scenario in scenarios:
                 comparison = scenario.comparison
                 for index, price in enumerate(comparison.prices):
-                    static_action, static_reason = policy_action(price.price, static_ceiling, price.buy, price.passing)
-                    inflation_action, inflation_reason = policy_action(price.price, inflation_ceiling, price.buy, price.passing)
-                    row = dict(base, price=price.price, scenario=scenario.name, price_factor=scenario.price_factor,
-                               forecast_factor=scenario.forecast_factor, absent_weeks=scenario.absent_weeks,
-                               scenario_supported_ceiling=comparison.supported_ceiling,
-                               scenario_possible_ceiling=comparison.possible_ceiling,
-                               price_disagreement=price_disagreements[index],
-                               static_action=static_action, static_reason=static_reason,
-                               inflation_action=inflation_action, inflation_reason=inflation_reason,
-                               roster_action={"buy": "supported", "unresolved": "search-unresolved"}.get(price.decision, price.decision),
-                               reason=price.reason)
-                    for branch, bound, frontier in (("buy", price.buy, comparison.buy), ("pass", price.passing, comparison.passing)):
-                        row.update({branch + "_" + key: value for key, value in asdict(bound).items() if key != "cost"})
+                    static_action, static_reason = policy_action(
+                        price.price, static_ceiling, price.buy, price.passing
+                    )
+                    inflation_action, inflation_reason = policy_action(
+                        price.price, inflation_ceiling, price.buy, price.passing
+                    )
+                    row = dict(
+                        base,
+                        price=price.price,
+                        scenario=scenario.name,
+                        price_factor=scenario.price_factor,
+                        forecast_factor=scenario.forecast_factor,
+                        absent_weeks=scenario.absent_weeks,
+                        scenario_supported_ceiling=comparison.supported_ceiling,
+                        scenario_possible_ceiling=comparison.possible_ceiling,
+                        price_disagreement=price_disagreements[index],
+                        static_action=static_action,
+                        static_reason=static_reason,
+                        inflation_action=inflation_action,
+                        inflation_reason=inflation_reason,
+                        roster_action={"buy": "supported", "unresolved": "search-unresolved"}.get(
+                            price.decision, price.decision
+                        ),
+                        reason=price.reason,
+                    )
+                    for branch, bound, frontier in (
+                        ("buy", price.buy, comparison.buy),
+                        ("pass", price.passing, comparison.passing),
+                    ):
+                        row.update(
+                            {
+                                branch + "_" + key: value
+                                for key, value in asdict(bound).items()
+                                if key != "cost"
+                            }
+                        )
                         row[branch + "_future_cost"] = bound.cost
-                        row[branch + "_total_cost"] = None if bound.cost is None else bound.cost + (price.price if branch == "buy" else 0)
+                        row[branch + "_total_cost"] = (
+                            None
+                            if bound.cost is None
+                            else bound.cost + (price.price if branch == "buy" else 0)
+                        )
                         row[branch + "_nodes"] = frontier.nodes
                         row[branch + "_exhausted"] = frontier.exhausted
-                        for field in ("relaxation_transitions", "relaxation_limit", "relaxation_complete", "relaxation_fallback"):
+                        for field in (
+                            "relaxation_transitions",
+                            "relaxation_limit",
+                            "relaxation_complete",
+                            "relaxation_fallback",
+                        ):
                             row[branch + "_" + field] = getattr(frontier, field)
                     yield row
 
@@ -1220,33 +1594,65 @@ def evaluate_roster(roster, players, rules, outcomes):
     missing_selected, missing_hindsight, weeks = [], [], []
     for week in range(rules.first_week, rules.last_week + 1):
         lineup = _projected_lineup(roster, players, weights, rules, week, None, ())
-        missing = [(key, week) for key in lineup if key is not None and outcomes.get((key, week)) is None]
+        missing = [
+            (key, week) for key in lineup if key is not None and outcomes.get((key, week)) is None
+        ]
         missing_selected.extend(missing)
-        fixed = None if missing else sum((outcomes[(key, week)] for key in lineup if key is not None), Decimal(0))
+        fixed = (
+            None
+            if missing
+            else sum((outcomes[(key, week)] for key in lineup if key is not None), Decimal(0))
+        )
         if fixed is not None:
             fixed_total += fixed
-        eligible = [key for key in roster if players[key].bye != week and
-                    any(players[key].position in {"RB", "WR", "TE"} if slot == "FLEX"
-                        else players[key].position == slot for slot in rules.starters)]
+        eligible = [
+            key
+            for key in roster
+            if players[key].bye != week
+            and any(
+                players[key].position in {"RB", "WR", "TE"}
+                if slot == "FLEX"
+                else players[key].position == slot
+                for slot in rules.starters
+            )
+        ]
         unknown = [(key, week) for key in eligible if outcomes.get((key, week)) is None]
         missing_hindsight.extend(unknown)
         hindsight_lineup, hindsight = None, None
         if not unknown:
-            actual = {key: outcomes.get((key, week)) if key in eligible else Decimal(0) for key in roster}
+            actual = {
+                key: outcomes.get((key, week)) if key in eligible else Decimal(0) for key in roster
+            }
             hindsight_lineup = _projected_lineup(roster, players, actual, rules, week, None, ())
-            hindsight = sum((actual[key] for key in hindsight_lineup if key is not None), Decimal(0))
+            hindsight = sum(
+                (actual[key] for key in hindsight_lineup if key is not None), Decimal(0)
+            )
             hindsight_total += hindsight
-        weeks.append(dict(week=week, fixed_preseason_lineup=lineup, fixed_preseason_points=fixed,
-                          optimistic_hindsight_lineup=hindsight_lineup, optimistic_hindsight_points=hindsight))
-    return dict(fixed_preseason_total=None if missing_selected else fixed_total,
-                optimistic_hindsight_total=None if missing_hindsight else hindsight_total,
-                missing_selected=tuple(missing_selected), missing_hindsight=tuple(missing_hindsight),
-                missing_starters=missing_starters(roster, players, rules), weeks=tuple(weeks))
+        weeks.append(
+            dict(
+                week=week,
+                fixed_preseason_lineup=lineup,
+                fixed_preseason_points=fixed,
+                optimistic_hindsight_lineup=hindsight_lineup,
+                optimistic_hindsight_points=hindsight,
+            )
+        )
+    return dict(
+        fixed_preseason_total=None if missing_selected else fixed_total,
+        optimistic_hindsight_total=None if missing_hindsight else hindsight_total,
+        missing_selected=tuple(missing_selected),
+        missing_hindsight=tuple(missing_hindsight),
+        missing_starters=missing_starters(roster, players, rules),
+        weeks=tuple(weeks),
+    )
 
 
 def _cell(value, field=None):
     if field in {"team", "player_id", "player_name"} and isinstance(value, str):
-        first = next((char for char in value if not char.isspace() and category(char) not in {"Cc", "Cf"}), "")
+        first = next(
+            (char for char in value if not char.isspace() and category(char) not in {"Cc", "Cf"}),
+            "",
+        )
         if first in {"=", "+", "-", "@"}:
             return "'" + value
     if value is None:
@@ -1275,10 +1681,20 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
     """Freeze recommendations, load outcomes, and generate both files before publishing."""
     input_dir, report_path, csv_path = Path(input_dir), Path(report_path), Path(csv_path)
     work_limit = _integer(work_limit, "search work limit", 1)
-    input_paths = {Path(auction_path).resolve(), (input_dir / "rules.json").resolve(), Path(__file__).resolve()}
-    input_paths.update((input_dir / (name + suffix)).resolve()
-                       for name in ("forecasts", "reference", "weekly") for suffix in (".csv", ".manifest.json"))
-    if report_path.resolve() == csv_path.resolve() or {report_path.resolve(), csv_path.resolve()} & input_paths:
+    input_paths = {
+        Path(auction_path).resolve(),
+        (input_dir / "rules.json").resolve(),
+        Path(__file__).resolve(),
+    }
+    input_paths.update(
+        (input_dir / (name + suffix)).resolve()
+        for name in ("forecasts", "reference", "weekly")
+        for suffix in (".csv", ".manifest.json")
+    )
+    if (
+        report_path.resolve() == csv_path.resolve()
+        or {report_path.resolve(), csv_path.resolve()} & input_paths
+    ):
         raise InputError("output paths must be distinct and cannot overwrite input files")
     rules = load_rules(input_dir / "rules.json", require_scoring=False)
     picks = load_auction(auction_path, rules)
@@ -1287,21 +1703,35 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
     try:
         scored_rules = load_rules(input_dir / "rules.json")
         forecast_manifest = _json(input_dir / "forecasts.manifest.json")
-        forecasts = load_forecasts(input_dir / "forecasts.csv", forecast_manifest, scored_rules,
-                                   {pick.player_id for pick in picks})
+        forecasts = load_forecasts(
+            input_dir / "forecasts.csv",
+            forecast_manifest,
+            scored_rules,
+            {pick.player_id for pick in picks},
+        )
         _validate_auction_forecasts(picks, forecasts)
         players = forecasts
         provenance["forecasts"] = forecast_manifest
         reference_manifest = _json(input_dir / "reference.manifest.json")
-        references = load_reference_values(input_dir / "reference.csv", reference_manifest, scored_rules, players)
+        references = load_reference_values(
+            input_dir / "reference.csv", reference_manifest, scored_rules, players
+        )
         provenance["reference"] = reference_manifest
     except InputError as error:
         gaps.append(str(error))
-    metadata = dict(rules=asdict(rules), auction=[asdict(pick) for pick in picks],
-                    preseason_sources=provenance, work_limit=work_limit,
-                    implementation_sha256=_file_hash(__file__), policy_input_gaps=gaps)
+    metadata = dict(
+        rules=asdict(rules),
+        auction=[asdict(pick) for pick in picks],
+        preseason_sources=provenance,
+        work_limit=work_limit,
+        implementation_sha256=_file_hash(__file__),
+        policy_input_gaps=gaps,
+    )
     recommendation_hash = hashlib.sha256(canonical_bytes(metadata) + b"\n")
-    pair_summaries, row_counts = {}, {policy: Counter() for policy in ("static", "inflation", "roster")}
+    pair_summaries, row_counts = (
+        {},
+        {policy: Counter() for policy in ("static", "inflation", "roster")},
+    )
     reason_counts = Counter()
     evaluated_unknown = {"fixed_preseason": 0, "optimistic_hindsight": 0}
     final = final_state(picks, rules)
@@ -1313,11 +1743,26 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
             frozen.write(payload.decode() + "\n")
             pair = (row["pick"], row["team"])
             if pair not in pair_summaries:
-                pair_summaries[pair] = {key: value for key, value in row.items()
-                                       if key in {"pick", "player_id", "player_name", "team", "budget", "reason",
-                                                  "neutral_supported_ceiling", "neutral_possible_ceiling", "scenario_supported_min",
-                                                  "scenario_supported_max", "scenario_possible_min", "scenario_possible_max",
-                                                  "scenario_disagreement"}}
+                pair_summaries[pair] = {
+                    key: value
+                    for key, value in row.items()
+                    if key
+                    in {
+                        "pick",
+                        "player_id",
+                        "player_name",
+                        "team",
+                        "budget",
+                        "reason",
+                        "neutral_supported_ceiling",
+                        "neutral_possible_ceiling",
+                        "scenario_supported_min",
+                        "scenario_supported_max",
+                        "scenario_possible_min",
+                        "scenario_possible_max",
+                        "scenario_disagreement",
+                    }
+                }
                 pair_summaries[pair]["actions"] = set()
                 reason_counts[row["reason"]] += 1
             pair_summaries[pair]["actions"].add(row["roster_action"])
@@ -1331,11 +1776,17 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
         if players is not None and rules.scoring:
             try:
                 outcome_source = _json(input_dir / "weekly.manifest.json")
-                outcomes = load_weekly_outcomes(input_dir / "weekly.csv", outcome_source, rules, players)
+                outcomes = load_weekly_outcomes(
+                    input_dir / "weekly.csv", outcome_source, rules, players
+                )
             except InputError as error:
                 outcome_gap = str(error)
         else:
-            outcome_gap = "accepted forecasts are unavailable for weekly evaluation" if rules.scoring else "complete league scoring and accepted forecasts are unavailable for weekly evaluation"
+            outcome_gap = (
+                "accepted forecasts are unavailable for weekly evaluation"
+                if rules.scoring
+                else "complete league scoring and accepted forecasts are unavailable for weekly evaluation"
+            )
 
         @lru_cache(maxsize=512)
         def evaluated(roster):
@@ -1343,8 +1794,14 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
 
         for path in (report_path, csv_path):
             path.parent.mkdir(parents=True, exist_ok=True)
-        with NamedTemporaryFile(mode="w", encoding="utf-8", newline="", dir=csv_path.parent,
-                                prefix=f".{csv_path.name}.", delete=False) as target:
+        with NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="",
+            dir=csv_path.parent,
+            prefix=f".{csv_path.name}.",
+            delete=False,
+        ) as target:
             staged_csv = Path(target.name)
             pending.callback(staged_csv.unlink, missing_ok=True)
             writer = csv.DictWriter(target, fieldnames=DECISION_FIELDS + EVALUATION_FIELDS)
@@ -1360,31 +1817,82 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
                             if evaluation[method + "_total"] is None:
                                 evaluated_unknown[method] += 1
                 writer.writerow({key: _cell(value, key) for key, value in row.items()})
-        actual_evaluations = {name: evaluated(roster) for name, roster in frozen_actual} if players else {}
+        actual_evaluations = (
+            {name: evaluated(roster) for name, roster in frozen_actual} if players else {}
+        )
         pair_counts = Counter()
         for pair in pair_summaries.values():
             actions = pair["actions"]
             # A mixed grid remains inspectable in row counts and CSV. This hierarchy
             # labels each pair once and never treats prices as independent seasons.
-            pair["disposition"] = next(action for action in ("missing-data", "search-unresolved", "supported", "pass", "infeasible")
-                                       if action in actions)
+            pair["disposition"] = next(
+                action
+                for action in (
+                    "missing-data",
+                    "search-unresolved",
+                    "supported",
+                    "pass",
+                    "infeasible",
+                )
+                if action in actions
+            )
             pair_counts[pair["disposition"]] += 1
-        actual_unknown = sum(value["fixed_preseason_total"] is None or value["optimistic_hindsight_total"] is None
-                             for value in actual_evaluations.values())
-        complete = (not gaps and outcome_gap is None and
-                    not any(counts["missing-data"] or counts["search-unresolved"] for counts in row_counts.values()) and
-                    not any(evaluated_unknown.values()) and not actual_unknown)
-        summary = dict(benchmark_complete=complete, pair_count=len(pair_summaries),
-                       evaluated_pair_count=sum("neutral_supported_ceiling" in pair for pair in pair_summaries.values()),
-                       pair_dispositions=dict(sorted(pair_counts.items())),
-                       row_dispositions={key: dict(sorted(value.items())) for key, value in row_counts.items()},
-                       recommendation_sha256=digest, csv_sha256=_file_hash(staged_csv), work_limit=work_limit,
-                       scenario_disagreement_pairs=sum(bool(pair.get("scenario_disagreement")) for pair in pair_summaries.values()),
-                       unknown_evaluation_branch_rows=evaluated_unknown)
-        report = _render_report(report_path, csv_path, input_dir, auction_path, picks, rules, final, summary,
-                                pair_summaries, reason_counts, gaps, provenance, outcome_gap, outcome_source, actual_evaluations)
-        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=report_path.parent,
-                                prefix=f".{report_path.name}.", delete=False) as target:
+        actual_unknown = sum(
+            value["fixed_preseason_total"] is None or value["optimistic_hindsight_total"] is None
+            for value in actual_evaluations.values()
+        )
+        complete = (
+            not gaps
+            and outcome_gap is None
+            and not any(
+                counts["missing-data"] or counts["search-unresolved"]
+                for counts in row_counts.values()
+            )
+            and not any(evaluated_unknown.values())
+            and not actual_unknown
+        )
+        summary = dict(
+            benchmark_complete=complete,
+            pair_count=len(pair_summaries),
+            evaluated_pair_count=sum(
+                "neutral_supported_ceiling" in pair for pair in pair_summaries.values()
+            ),
+            pair_dispositions=dict(sorted(pair_counts.items())),
+            row_dispositions={
+                key: dict(sorted(value.items())) for key, value in row_counts.items()
+            },
+            recommendation_sha256=digest,
+            csv_sha256=_file_hash(staged_csv),
+            work_limit=work_limit,
+            scenario_disagreement_pairs=sum(
+                bool(pair.get("scenario_disagreement")) for pair in pair_summaries.values()
+            ),
+            unknown_evaluation_branch_rows=evaluated_unknown,
+        )
+        report = _render_report(
+            report_path,
+            csv_path,
+            input_dir,
+            auction_path,
+            picks,
+            rules,
+            final,
+            summary,
+            pair_summaries,
+            reason_counts,
+            gaps,
+            provenance,
+            outcome_gap,
+            outcome_source,
+            actual_evaluations,
+        )
+        with NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=report_path.parent,
+            prefix=f".{report_path.name}.",
+            delete=False,
+        ) as target:
             staged_report = Path(target.name)
             pending.callback(staged_report.unlink, missing_ok=True)
             target.write(report)
@@ -1393,12 +1901,29 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
         return summary
 
 
-def _render_report(report_path, csv_path, input_dir, auction_path, picks, rules, final, summary,
-                  pairs, reasons, gaps, provenance, outcome_gap, outcome_source, actual_evaluations):
+def _render_report(
+    report_path,
+    csv_path,
+    input_dir,
+    auction_path,
+    picks,
+    rules,
+    final,
+    summary,
+    pairs,
+    reasons,
+    gaps,
+    provenance,
+    outcome_gap,
+    outcome_source,
+    actual_evaluations,
+):
     def table(headers, rows):
         clean = lambda value: str(value).replace("|", "\\|").replace("\n", " ")
-        return ["| " + " | ".join(map(clean, headers)) + " |", "| " + " | ".join("---" for _ in headers) + " |"] + [
-            "| " + " | ".join(map(clean, row)) + " |" for row in rows]
+        return [
+            "| " + " | ".join(map(clean, headers)) + " |",
+            "| " + " | ".join("---" for _ in headers) + " |",
+        ] + ["| " + " | ".join(map(clean, row)) + " |" for row in rows]
 
     project = Path(__file__).resolve().parents[2]
 
@@ -1407,156 +1932,349 @@ def _render_report(report_path, csv_path, input_dir, auction_path, picks, rules,
         path = Path(path).resolve()
         return str(path.relative_to(project)) if path.is_relative_to(project) else str(path)
 
-    command = (f"PYTHONPATH=src python3 -B -m auction_replay.replay_auction "
-               f"--auction {shlex.quote(shown(auction_path))} --input-dir {shlex.quote(shown(input_dir))} "
-               f"--report {shlex.quote(shown(report_path))} --csv {shlex.quote(shown(csv_path))} "
-               f"--work-limit {summary['work_limit']}")
-    lines = [f"# {rules.season} auction replay", "",
-             f"**Benchmark {'COMPLETE' if summary['benchmark_complete'] else 'INCOMPLETE'}**: `benchmark_complete: {str(summary['benchmark_complete']).lower()}`.", "",
-             "This local report separates observed auction facts, conditional draft-time recommendations, and later evaluation. "
-             "A partial report or a synthetic calculation proof cannot establish a premium strategy for this league.", "",
-             "## Reproduce the report", "",
-             f"To regenerate these artifacts, run `{command}` from the repository root. Exit 0 means complete, 1 means a generated incomplete benchmark, and 2 means an input/output error.", "",
-             "To run the calculation checks, use `python3 -B tests/test_replay_auction.py` from the repository root.", "",
-             f"The machine-readable CSV is `{csv_path.name}` under `{shown(csv_path.parent)}`. It contains every team/nomination pair: "
-             "one row per legal price and scenario when inputs are valid, or one blank-price row for a blocked pair.", "",
-             "## Coverage and observed auction", "",
-             f"{len(picks)} selections; {sum(not pick.keeper for pick in picks)} auction nominations; {rules.teams} teams; "
-             f"{summary['pair_count']} team/nomination pairs. Total spend ${sum(p.salary for p in picks):,}; "
-             f"keeper commitments ${sum(p.salary for p in picks if p.keeper):,}; remaining cash ${sum(t.budget for t in final.teams):,}.", ""]
+    command = (
+        f"PYTHONPATH=src python3 -B -m auction_replay.replay_auction "
+        f"--auction {shlex.quote(shown(auction_path))} --input-dir {shlex.quote(shown(input_dir))} "
+        f"--report {shlex.quote(shown(report_path))} --csv {shlex.quote(shown(csv_path))} "
+        f"--work-limit {summary['work_limit']}"
+    )
+    lines = [
+        f"# {rules.season} auction replay",
+        "",
+        f"**Benchmark {'COMPLETE' if summary['benchmark_complete'] else 'INCOMPLETE'}**: `benchmark_complete: {str(summary['benchmark_complete']).lower()}`.",
+        "",
+        "This local report separates observed auction facts, conditional draft-time recommendations, and later evaluation. "
+        "A partial report or a synthetic calculation proof cannot establish a premium strategy for this league.",
+        "",
+        "## Reproduce the report",
+        "",
+        f"To regenerate these artifacts, run `{command}` from the repository root. Exit 0 means complete, 1 means a generated incomplete benchmark, and 2 means an input/output error.",
+        "",
+        "To run the calculation checks, use `python3 -B tests/test_replay_auction.py` from the repository root.",
+        "",
+        f"The machine-readable CSV is `{csv_path.name}` under `{shown(csv_path.parent)}`. It contains every team/nomination pair: "
+        "one row per legal price and scenario when inputs are valid, or one blank-price row for a blocked pair.",
+        "",
+        "## Coverage and observed auction",
+        "",
+        f"{len(picks)} selections; {sum(not pick.keeper for pick in picks)} auction nominations; {rules.teams} teams; "
+        f"{summary['pair_count']} team/nomination pairs. Total spend ${sum(p.salary for p in picks):,}; "
+        f"keeper commitments ${sum(p.salary for p in picks if p.keeper):,}; remaining cash ${sum(t.budget for t in final.teams):,}.",
+        "",
+    ]
     rule_source = _json(input_dir / "rules.json")
-    lines += [(f"The captured league rules declare {len(rules.scoring)} enabled scoring categories; "
-               f"scoring SHA-256 `{scoring_hash(rules)}`." if rules.scoring else
-               "Only structural rules are accepted; complete scoring is unavailable."), ""]
+    lines += [
+        (
+            f"The captured league rules declare {len(rules.scoring)} enabled scoring categories; "
+            f"scoring SHA-256 `{scoring_hash(rules)}`."
+            if rules.scoring
+            else "Only structural rules are accepted; complete scoring is unavailable."
+        ),
+        "",
+    ]
     if rule_source.get("source_url"):
-        lines += [f"[League settings]({rule_source['source_url']}); captured {rule_source.get('source_captured_at', 'date unavailable')}; "
-                  f"source SHA-256 `{rule_source.get('source_sha256', 'unavailable')}`.", ""]
+        lines += [
+            f"[League settings]({rule_source['source_url']}); captured {rule_source.get('source_captured_at', 'date unavailable')}; "
+            f"source SHA-256 `{rule_source.get('source_sha256', 'unavailable')}`.",
+            "",
+        ]
     dispositions = ("supported", "pass", "infeasible", "missing-data", "search-unresolved")
-    lines += table(("Disposition", "Pairs", "Static rows", "Inflation rows", "Roster rows"), [
-        (name, summary["pair_dispositions"].get(name, 0), *(summary["row_dispositions"][policy].get(name, 0)
-                                                          for policy in ("static", "inflation", "roster"))) for name in dispositions])
-    lines += ["", "Each pair receives one summary label: missing-data, then search-unresolved, supported, pass, or infeasible. "
-              "The CSV retains mixed actions across prices. Rows and overlapping branches are not independent samples or additive seasons.", ""]
+    lines += table(
+        ("Disposition", "Pairs", "Static rows", "Inflation rows", "Roster rows"),
+        [
+            (
+                name,
+                summary["pair_dispositions"].get(name, 0),
+                *(
+                    summary["row_dispositions"][policy].get(name, 0)
+                    for policy in ("static", "inflation", "roster")
+                ),
+            )
+            for name in dispositions
+        ],
+    )
+    lines += [
+        "",
+        "Each pair receives one summary label: missing-data, then search-unresolved, supported, pass, or infeasible. "
+        "The CSV retains mixed actions across prices. Rows and overlapping branches are not independent samples or additive seasons.",
+        "",
+    ]
     if reasons.get("full roster") or reasons.get("insufficient starter slots after purchase"):
-        lines += [f"Structural rejection: {reasons['full roster']} pairs have a full roster; "
-                  f"{reasons['insufficient starter slots after purchase']} purchases leave too few starter slots. "
-                  "These proofs use observed holdings only. Missing forecasts never shrink the unknown eligible future universe.", ""]
+        lines += [
+            f"Structural rejection: {reasons['full roster']} pairs have a full roster; "
+            f"{reasons['insufficient starter slots after purchase']} purchases leave too few starter slots. "
+            "These proofs use observed holdings only. Missing forecasts never shrink the unknown eligible future universe.",
+            "",
+        ]
     positions = {pick.player_id: pick for pick in picks}
-    lines += table(("Team", "Spent", "Roster", "Unfilled starting positions", "Pair dispositions"), [
-        (team.name, f"${rules.budget - team.budget}", len(team.roster),
-         "missing " + ", ".join(missing_starters(team.roster, positions, rules)) if missing_starters(team.roster, positions, rules) else "none",
-         ", ".join(f"{key}: {value}" for key, value in sorted(Counter(pair["disposition"] for pair in pairs.values() if pair["team"] == team.name).items())))
-        for team in final.teams])
-    lines += ["", "Actual holdings remain unchanged, including missing starters. The evaluator adds no replacement player, refund, waiver, or injury substitution.", "",
-              "## Evidence blockers", ""]
+    lines += table(
+        ("Team", "Spent", "Roster", "Unfilled starting positions", "Pair dispositions"),
+        [
+            (
+                team.name,
+                f"${rules.budget - team.budget}",
+                len(team.roster),
+                "missing " + ", ".join(missing_starters(team.roster, positions, rules))
+                if missing_starters(team.roster, positions, rules)
+                else "none",
+                ", ".join(
+                    f"{key}: {value}"
+                    for key, value in sorted(
+                        Counter(
+                            pair["disposition"]
+                            for pair in pairs.values()
+                            if pair["team"] == team.name
+                        ).items()
+                    )
+                ),
+            )
+            for team in final.teams
+        ],
+    )
+    lines += [
+        "",
+        "Actual holdings remain unchanged, including missing starters. The evaluator adds no replacement player, refund, waiver, or injury substitution.",
+        "",
+        "## Evidence blockers",
+        "",
+    ]
     for gap in gaps:
         lines += [f"- Policy input: {gap}"]
     if outcome_gap:
         lines += [f"- Weekly evaluation: {outcome_gap}"]
     notes_path = input_dir / "input-gaps.json"
     if notes_path.exists():
-        lines += ["", "Collection notes below record source research. Current loader failures appear above; these notes may be stale "
-                  "after you supply accepted normalized files and do not override their validation results.", ""]
+        lines += [
+            "",
+            "Collection notes below record source research. Current loader failures appear above; these notes may be stale "
+            "after you supply accepted normalized files and do not override their validation results.",
+            "",
+        ]
         for note in _json_list(notes_path):
-            lines += [f"- **{note.get('code', 'source gap')}** ({note.get('affects', 'coverage')}): {note.get('details', '')} "
-                      f"[Required source]({note.get('source', '')})."]
+            lines += [
+                f"- **{note.get('code', 'source gap')}** ({note.get('affects', 'coverage')}): {note.get('details', '')} "
+                f"[Required source]({note.get('source', '')})."
+            ]
     if not gaps and not outcome_gap:
-        lines += ["Accepted normalized files pass season, pre-draft date, hash, scoring-coverage, coefficient, identity, and undrafted-universe gates. "
-                  "Source declarations still require collection review; they do not establish untouched historical archives."]
-    lines += ["", "## Policies, scenarios, and search bounds", "",
-              "Static values rebase source excess dollars above $1 to the league's budget and roster pool. Inflation rescales remaining "
-              "discretionary dollars. Future prices use only earlier auction sales, with a median sale-to-prediction ratio shrunk toward 1 by n/(n+20). "
-              "The original advice tool remains unidentified; these public-reference policies do not measure that tool's performance.", "",
-              "All three policies share the captured state, legal integer price grid, future pool, paid roster completion, and branch frontiers. "
-              "The CSV distinguishes source values, raw estimates, legally capped policy ceilings, and executable actions. Baseline 'supported' means "
-              "within its ceiling with a feasible buy incumbent; it does not prove that buying beats passing. A baseline cannot confirm a buy without a feasible roster.", "",
-              "The roster policy supports buying only if its feasible buy lower bound exceeds the pass upper bound, or passing is proven infeasible. "
-              "Equality passes. Overlapping bounds remain search-unresolved. Buy future cost excludes the nominee; buy total cost adds the tested nominee price. "
-              "Both exclude previously paid holdings. Every row records exact Decimal bounds, roster IDs, costs, state, node counts, and reasons.", "",
-              f"Each branch has a deterministic {summary['work_limit']:,}-node limit. Frontiers are reused across prices; "
-              "the pass frontier is also shared across nominee-only stresses at the same future prices. "
-              "The subset search can leave realistic pools unresolved; no runtime or resolution rate is promised. A limit is never proof of infeasibility.", "",
-              "The nine defined scenarios cross future-price factors 0.8, 1.0, and 1.2 with neutral forecasts, a 20% nominee forecast reduction, and two "
-              "nominee absences in the first two non-bye evaluation weeks. Season forecasts are distributed over 17 scheduled games and scored in Weeks 1–17. "
-              "Byes drive bench coverage. Scenarios are stress assumptions, not calibrated probabilities.", "",
-              (f"Scenario execution: all nine scenarios run for each of {summary['evaluated_pair_count']} evaluated pairs."
-               if summary["evaluated_pair_count"] else "Scenario execution: no price grid is evaluated; all nine scenarios are defined but none are run."), "",
-              f"**Scenario disagreement:** {summary['scenario_disagreement_pairs']} evaluated pairs change action across scenarios. "
-              "Zero disagreements with no evaluated grid means missing evidence, not robustness. The CSV repeats each pair's neutral supported/possible "
-              "ceiling and scenario ranges, plus disagreement at the tested price.", ""]
-    examples = [pair for pair in pairs.values() if any(name in pair["player_name"] for name in ("Nacua", "Ridley", "Odunze", "Hunter", "Jeudy"))]
+        lines += [
+            "Accepted normalized files pass season, pre-draft date, hash, scoring-coverage, coefficient, identity, and undrafted-universe gates. "
+            "Source declarations still require collection review; they do not establish untouched historical archives."
+        ]
+    lines += [
+        "",
+        "## Policies, scenarios, and search bounds",
+        "",
+        "Static values rebase source excess dollars above $1 to the league's budget and roster pool. Inflation rescales remaining "
+        "discretionary dollars. Future prices use only earlier auction sales, with a median sale-to-prediction ratio shrunk toward 1 by n/(n+20). "
+        "The original advice tool remains unidentified; these public-reference policies do not measure that tool's performance.",
+        "",
+        "All three policies share the captured state, legal integer price grid, future pool, paid roster completion, and branch frontiers. "
+        "The CSV distinguishes source values, raw estimates, legally capped policy ceilings, and executable actions. Baseline 'supported' means "
+        "within its ceiling with a feasible buy incumbent; it does not prove that buying beats passing. A baseline cannot confirm a buy without a feasible roster.",
+        "",
+        "The roster policy supports buying only if its feasible buy lower bound exceeds the pass upper bound, or passing is proven infeasible. "
+        "Equality passes. Overlapping bounds remain search-unresolved. Buy future cost excludes the nominee; buy total cost adds the tested nominee price. "
+        "Both exclude previously paid holdings. Every row records exact Decimal bounds, roster IDs, costs, state, node counts, and reasons.",
+        "",
+        f"Each branch has a deterministic {summary['work_limit']:,}-node limit. Frontiers are reused across prices; "
+        "the pass frontier is also shared across nominee-only stresses at the same future prices. "
+        "The subset search can leave realistic pools unresolved; no runtime or resolution rate is promised. A limit is never proof of infeasibility.",
+        "",
+        "The nine defined scenarios cross future-price factors 0.8, 1.0, and 1.2 with neutral forecasts, a 20% nominee forecast reduction, and two "
+        "nominee absences in the first two non-bye evaluation weeks. Season forecasts are distributed over 17 scheduled games and scored in Weeks 1–17. "
+        "Byes drive bench coverage. Scenarios are stress assumptions, not calibrated probabilities.",
+        "",
+        (
+            f"Scenario execution: all nine scenarios run for each of {summary['evaluated_pair_count']} evaluated pairs."
+            if summary["evaluated_pair_count"]
+            else "Scenario execution: no price grid is evaluated; all nine scenarios are defined but none are run."
+        ),
+        "",
+        f"**Scenario disagreement:** {summary['scenario_disagreement_pairs']} evaluated pairs change action across scenarios. "
+        "Zero disagreements with no evaluated grid means missing evidence, not robustness. The CSV repeats each pair's neutral supported/possible "
+        "ceiling and scenario ranges, plus disagreement at the tested price.",
+        "",
+    ]
+    examples = [
+        pair
+        for pair in pairs.values()
+        if any(
+            name in pair["player_name"] for name in ("Nacua", "Ridley", "Odunze", "Hunter", "Jeudy")
+        )
+    ]
     if not examples:
-        examples = [pair for pair in pairs.values() if pair["pick"] == min(pick.pick for pick in picks if not pick.keeper)]
-    lines += ["## Named decision examples within full coverage", "",
-              "These nomination examples preserve all teams at each named moment. No observed season points choose a favorable branch. "
-              "Read the complete CSV for every other nomination. Blank ceilings indicate blocked inputs, not a $0 valuation.", ""]
-    lines += table(("Pick", "Nominee", "Team", "Disposition", "Neutral supported / possible", "Scenario supported range", "Possible range", "Disagrees"), [
-        (pair["pick"], pair["player_name"], pair["team"], pair["disposition"],
-         f"{pair['neutral_supported_ceiling']} / {pair['neutral_possible_ceiling']}" if "neutral_supported_ceiling" in pair else "unavailable",
-         f"{pair['scenario_supported_min']}–{pair['scenario_supported_max']}" if "scenario_supported_min" in pair else "unavailable",
-         f"{pair['scenario_possible_min']}–{pair['scenario_possible_max']}" if "scenario_possible_min" in pair else "unavailable",
-         str(pair.get("scenario_disagreement", "unavailable")).lower()) for pair in examples])
-    lines += ["", "## Separate realized evaluation", "",
-              "All completed roster alternatives and the recommendation payload freeze before weekly outcomes load. Fixed-preseason lineups use the "
-              "base forecast ordering, stable ID ties, and known byes, even when the purchase scenario stressed a forecast. A selected player's missing "
-              "week makes its score unknown; verified nonparticipation can be zero. Known byes and unfilled positions contribute zero. Week 18 is excluded.", "",
-              "The separately labeled optimistic hindsight lineup selects the best legal weekly lineup over the same frozen roster. Any missing active "
-              "eligible player's outcome makes that week's optimistic bound unknown. Empty slots may score zero. Neither method models roster transactions. "
-              "No overlapping alternative is summed into a simulated team season, and 2025 remains exploratory because its outcomes have already informed the question.", "",
-              f"Unknown evaluation branch rows: fixed-preseason {summary['unknown_evaluation_branch_rows']['fixed_preseason']}; "
-              f"optimistic hindsight {summary['unknown_evaluation_branch_rows']['optimistic_hindsight']}. "
-              "These are coverage counts, not independent observations. With no completed alternatives, zero counts mean evaluation was unavailable.", ""]
+        examples = [
+            pair
+            for pair in pairs.values()
+            if pair["pick"] == min(pick.pick for pick in picks if not pick.keeper)
+        ]
+    lines += [
+        "## Named decision examples within full coverage",
+        "",
+        "These nomination examples preserve all teams at each named moment. No observed season points choose a favorable branch. "
+        "Read the complete CSV for every other nomination. Blank ceilings indicate blocked inputs, not a $0 valuation.",
+        "",
+    ]
+    lines += table(
+        (
+            "Pick",
+            "Nominee",
+            "Team",
+            "Disposition",
+            "Neutral supported / possible",
+            "Scenario supported range",
+            "Possible range",
+            "Disagrees",
+        ),
+        [
+            (
+                pair["pick"],
+                pair["player_name"],
+                pair["team"],
+                pair["disposition"],
+                f"{pair['neutral_supported_ceiling']} / {pair['neutral_possible_ceiling']}"
+                if "neutral_supported_ceiling" in pair
+                else "unavailable",
+                f"{pair['scenario_supported_min']}–{pair['scenario_supported_max']}"
+                if "scenario_supported_min" in pair
+                else "unavailable",
+                f"{pair['scenario_possible_min']}–{pair['scenario_possible_max']}"
+                if "scenario_possible_min" in pair
+                else "unavailable",
+                str(pair.get("scenario_disagreement", "unavailable")).lower(),
+            )
+            for pair in examples
+        ],
+    )
+    lines += [
+        "",
+        "## Separate realized evaluation",
+        "",
+        "All completed roster alternatives and the recommendation payload freeze before weekly outcomes load. Fixed-preseason lineups use the "
+        "base forecast ordering, stable ID ties, and known byes, even when the purchase scenario stressed a forecast. A selected player's missing "
+        "week makes its score unknown; verified nonparticipation can be zero. Known byes and unfilled positions contribute zero. Week 18 is excluded.",
+        "",
+        "The separately labeled optimistic hindsight lineup selects the best legal weekly lineup over the same frozen roster. Any missing active "
+        "eligible player's outcome makes that week's optimistic bound unknown. Empty slots may score zero. Neither method models roster transactions. "
+        "No overlapping alternative is summed into a simulated team season, and 2025 remains exploratory because its outcomes have already informed the question.",
+        "",
+        f"Unknown evaluation branch rows: fixed-preseason {summary['unknown_evaluation_branch_rows']['fixed_preseason']}; "
+        f"optimistic hindsight {summary['unknown_evaluation_branch_rows']['optimistic_hindsight']}. "
+        "These are coverage counts, not independent observations. With no completed alternatives, zero counts mean evaluation was unavailable.",
+        "",
+    ]
     if actual_evaluations:
-        lines += table(("Actual team roster", "Fixed-preseason points", "Optimistic hindsight points", "Missing selected weeks", "Missing hindsight player-weeks"), [
-            (team, value["fixed_preseason_total"] if value["fixed_preseason_total"] is not None else "unknown",
-             value["optimistic_hindsight_total"] if value["optimistic_hindsight_total"] is not None else "unknown",
-             len(value["missing_selected"]), len(value["missing_hindsight"])) for team, value in actual_evaluations.items()])
+        lines += table(
+            (
+                "Actual team roster",
+                "Fixed-preseason points",
+                "Optimistic hindsight points",
+                "Missing selected weeks",
+                "Missing hindsight player-weeks",
+            ),
+            [
+                (
+                    team,
+                    value["fixed_preseason_total"]
+                    if value["fixed_preseason_total"] is not None
+                    else "unknown",
+                    value["optimistic_hindsight_total"]
+                    if value["optimistic_hindsight_total"] is not None
+                    else "unknown",
+                    len(value["missing_selected"]),
+                    len(value["missing_hindsight"]),
+                )
+                for team, value in actual_evaluations.items()
+            ],
+        )
     else:
-        lines += ["Actual-roster outcome scores are unavailable because accepted forecast and weekly outcome inputs are unavailable."]
-    lines += ["", "## Reproducibility and source provenance", "",
-              f"- Recommendation SHA-256: `{summary['recommendation_sha256']}`.",
-              f"- Decision CSV SHA-256 (includes evaluation): `{summary['csv_sha256']}`.",
-              f"- Raw auction file SHA-256 (descriptive only; may include outcome columns): `{_file_hash(auction_path)}`.",
-              "- Recommendation hashing includes only whitelisted auction facts, structural/scoring rules, accepted preseason manifests, "
-              "search settings, implementation bytes, and frozen policy rows. Raw outcome columns and weekly source hashes cannot alter it.", ""]
+        lines += [
+            "Actual-roster outcome scores are unavailable because accepted forecast and weekly outcome inputs are unavailable."
+        ]
+    lines += [
+        "",
+        "## Reproducibility and source provenance",
+        "",
+        f"- Recommendation SHA-256: `{summary['recommendation_sha256']}`.",
+        f"- Decision CSV SHA-256 (includes evaluation): `{summary['csv_sha256']}`.",
+        f"- Raw auction file SHA-256 (descriptive only; may include outcome columns): `{_file_hash(auction_path)}`.",
+        "- Recommendation hashing includes only whitelisted auction facts, structural/scoring rules, accepted preseason manifests, "
+        "search settings, implementation bytes, and frozen policy rows. Raw outcome columns and weekly source hashes cannot alter it.",
+        "",
+    ]
     for name, manifest in provenance.items():
-        lines += [f"- Accepted {name}: [source]({manifest['url']}), season {manifest['season']}, published {manifest['published_at']}, "
-                  f"retrieved {manifest['retrieved_at']}, normalized SHA-256 `{manifest['sha256']}`; "
-                  f"{len(manifest['identity_mappings'])} explicit mappings. {manifest['local_use']}."]
+        lines += [
+            f"- Accepted {name}: [source]({manifest['url']}), season {manifest['season']}, published {manifest['published_at']}, "
+            f"retrieved {manifest['retrieved_at']}, normalized SHA-256 `{manifest['sha256']}`; "
+            f"{len(manifest['identity_mappings'])} explicit mappings. {manifest['local_use']}."
+        ]
     if outcome_source:
-        lines += [f"- Separate weekly source (evaluation only): [source]({outcome_source.get('url', '')}), "
-                  f"normalized SHA-256 `{outcome_source.get('sha256', 'unavailable')}`. Acceptance: {'failed' if outcome_gap else 'passed'}."]
+        lines += [
+            f"- Separate weekly source (evaluation only): [source]({outcome_source.get('url', '')}), "
+            f"normalized SHA-256 `{outcome_source.get('sha256', 'unavailable')}`. Acceptance: {'failed' if outcome_gap else 'passed'}."
+        ]
     inventory = input_dir / "sources/source-inventory.json"
     if inventory.exists():
-        lines += ["", "Cached raw sources below are candidates, not accepted normalized policy inputs. Hash checks establish current cache reproducibility; "
-                  "publisher dates do not prove historical immutability. Raw reconciliation that includes Week 18 is diagnostic only.", ""]
+        lines += [
+            "",
+            "Cached raw sources below are candidates, not accepted normalized policy inputs. Hash checks establish current cache reproducibility; "
+            "publisher dates do not prove historical immutability. Raw reconciliation that includes Week 18 is diagnostic only.",
+            "",
+        ]
         source_rows = []
         for source in _json_list(inventory):
             path = inventory.parent / source.get("file", "")
             valid = path.is_file() and _file_hash(path) == source.get("sha256")
-            source_rows.append((f"[{source.get('name')}]({source.get('url')})", source.get("season"),
-                                source.get("publisher_date") or "unknown", source.get("retrieved_at"),
-                                "matches" if valid else "MISSING/MISMATCH", source.get("sha256")))
+            source_rows.append(
+                (
+                    f"[{source.get('name')}]({source.get('url')})",
+                    source.get("season"),
+                    source.get("publisher_date") or "unknown",
+                    source.get("retrieved_at"),
+                    "matches" if valid else "MISSING/MISMATCH",
+                    source.get("sha256"),
+                )
+            )
         matched = sum(row[4] == "matches" for row in source_rows)
-        lines += [f"**Raw cache verification: {matched}/{len(source_rows)} hashes match; {len(source_rows) - matched} missing or mismatched.** "
-                  "This check is separate from normalized-input acceptance.", ""]
-        lines += table(("Raw source", "Season", "Publisher date", "Retrieved", "Cache hash", "SHA-256"), source_rows)
-    lines += ["", "This report does not establish generalization, championship probability, other managers' maximum bids, or a causal alternate auction. "
-              "For an incomplete benchmark, resolve the current input failures. Review calculation and source evidence before sharing a strategy conclusion.", ""]
+        lines += [
+            f"**Raw cache verification: {matched}/{len(source_rows)} hashes match; {len(source_rows) - matched} missing or mismatched.** "
+            "This check is separate from normalized-input acceptance.",
+            "",
+        ]
+        lines += table(
+            ("Raw source", "Season", "Publisher date", "Retrieved", "Cache hash", "SHA-256"),
+            source_rows,
+        )
+    lines += [
+        "",
+        "This report does not establish generalization, championship probability, other managers' maximum bids, or a causal alternate auction. "
+        "For an incomplete benchmark, resolve the current input failures. Review calculation and source evidence before sharing a strategy conclusion.",
+        "",
+    ]
     return "\n".join(lines)
 
 
 def main(argv=None):
     root = Path(__file__).resolve().parents[2]
-    parser = argparse.ArgumentParser(description="Generate a local auction replay; missing evidence produces an incomplete report.")
-    parser.add_argument("--auction", type=Path, default=root / "docs/research/2025-discount-double-check-auction.csv")
+    parser = argparse.ArgumentParser(
+        description="Generate a local auction replay; missing evidence produces an incomplete report."
+    )
+    parser.add_argument(
+        "--auction",
+        type=Path,
+        default=root / "docs/research/2025-discount-double-check-auction.csv",
+    )
     parser.add_argument("--input-dir", type=Path, default=root / "data/local/2025")
-    parser.add_argument("--report", type=Path, default=root / "docs/research/2025-auction-replay.md")
+    parser.add_argument(
+        "--report", type=Path, default=root / "docs/research/2025-auction-replay.md"
+    )
     parser.add_argument("--csv", type=Path, default=root / "data/local/2025/replay-decisions.csv")
     parser.add_argument("--work-limit", type=int, default=2000)
     args = parser.parse_args(argv)
     try:
-        summary = run_benchmark(args.auction, args.input_dir, args.report, args.csv, args.work_limit)
+        summary = run_benchmark(
+            args.auction, args.input_dir, args.report, args.csv, args.work_limit
+        )
     except (InputError, OSError) as error:
         parser.exit(2, f"Replay input/output error: {error}\n")
     print(json.dumps(summary, sort_keys=True))
