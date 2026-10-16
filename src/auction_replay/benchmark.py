@@ -38,6 +38,29 @@ from .loaders import (
 from .pricing import _validate_auction_forecasts
 from .state import final_state, missing_starters
 
+# Every file of the replay engine. Before the split, run_benchmark hashed its own file,
+# which then held the whole engine. Hashing all of these files keeps the recommendation
+# hash, and the code hashes other modules record, tied to all of the engine's code.
+ENGINE_FILES = tuple(
+    Path(__file__).resolve().with_name(name)
+    for name in (
+        "replay_auction.py",
+        "inputs.py",
+        "loaders.py",
+        "state.py",
+        "pricing.py",
+        "search.py",
+        "decisions.py",
+        "benchmark.py",
+    )
+)
+
+
+def implementation_hash():
+    """Return one SHA-256 that changes when any file in ENGINE_FILES changes."""
+    hashes = {path.name: _file_hash(path) for path in ENGINE_FILES}
+    return hashlib.sha256(canonical_bytes(hashes)).hexdigest()
+
 
 def _cell(value, field=None):
     if field in {"team", "player_id", "player_name"} and isinstance(value, str):
@@ -76,7 +99,7 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
     input_paths = {
         Path(auction_path).resolve(),
         (input_dir / "rules.json").resolve(),
-        Path(__file__).resolve(),
+        *ENGINE_FILES,
     }
     input_paths.update(
         (input_dir / (name + suffix)).resolve()
@@ -116,7 +139,7 @@ def run_benchmark(auction_path, input_dir, report_path, csv_path, work_limit=200
         auction=[asdict(pick) for pick in picks],
         preseason_sources=provenance,
         work_limit=work_limit,
-        implementation_sha256=_file_hash(__file__),
+        implementation_sha256=implementation_hash(),
         policy_input_gaps=gaps,
     )
     recommendation_hash = hashlib.sha256(canonical_bytes(metadata) + b"\n")

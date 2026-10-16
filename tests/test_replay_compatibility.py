@@ -3,6 +3,8 @@
 The other modules, the tests, and the console scripts reach the replay engine through
 replay_auction. These checks pin that contract: the names it provides, what patching one
 of them does, every console script target, and the decisions for the synthetic league.
+They also check that the code hashes cover every module of the engine, not only
+replay_auction.py.
 
 Run from the repository root: python3 -B tests/test_replay_compatibility.py
 """
@@ -17,6 +19,7 @@ from dataclasses import asdict
 from importlib.metadata import EntryPoint
 from io import StringIO
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,6 +28,8 @@ SYNTHETIC = ROOT / "examples" / "synthetic"
 # Run from a checkout without installing: put src/ on the import path.
 sys.path.insert(0, str(ROOT / "src"))
 
+from auction_replay import benchmark  # noqa: E402
+from auction_replay import historical_price_pilot as pilot  # noqa: E402
 from auction_replay import replay_auction as replay  # noqa: E402
 
 # Every top-level name that replay_auction.py defined when it held the whole engine.
@@ -118,6 +123,45 @@ class ReplayCompatibilityChecks(unittest.TestCase):
         self.assertIn(
             f"Decision CSV SHA-256 (includes evaluation): `{summary['csv_sha256']}`", report
         )
+
+
+class EngineHashChecks(unittest.TestCase):
+    def engine_file_names(self):
+        modules = (
+            value
+            for value in vars(replay).values()
+            if isinstance(value, ModuleType) and value.__name__.startswith("auction_replay.")
+        )
+        return {Path(module.__file__ or "").name for module in modules} | {"replay_auction.py"}
+
+    def test_engine_files_list_every_engine_module(self):
+        names = [path.name for path in benchmark.ENGINE_FILES]
+        self.assertEqual(len(names), len(set(names)))
+        self.assertEqual(set(names), self.engine_file_names())
+        self.assertTrue(all(path.is_file() for path in benchmark.ENGINE_FILES))
+
+    def test_pilot_code_hashes_cover_every_engine_file(self):
+        metadata = pilot.make_joint_metadata(
+            (), replay.LeagueRules(), {}, {}, "A", {}, source_hashes={}
+        )
+        expected = {path.name: replay._file_hash(path) for path in benchmark.ENGINE_FILES}
+        expected["historical_price_pilot.py"] = replay._file_hash(pilot.__file__)
+        self.assertEqual(metadata["code_hashes"], expected)
+
+    def test_implementation_hash_changes_with_any_engine_file(self):
+        baseline = benchmark.implementation_hash()
+        file_hash = replay._file_hash
+        for changed in benchmark.ENGINE_FILES:
+            with self.subTest(file=changed.name):
+                with patch.object(
+                    replay,
+                    "_file_hash",
+                    side_effect=lambda path, changed=changed: (
+                        "0" * 64 if Path(path) == changed else file_hash(path)
+                    ),
+                ):
+                    self.assertNotEqual(benchmark.implementation_hash(), baseline)
+        self.assertEqual(benchmark.implementation_hash(), baseline)
 
 
 if __name__ == "__main__":
