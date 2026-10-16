@@ -9,6 +9,7 @@ from typing import Any
 from . import build_draft_companion as companion
 from . import historical_price_pilot as pilot
 from . import replay_auction as replay
+from .benchmark import ENGINE_FILES
 
 OUTPUT = pilot.ROOT / "data/local/2025/bench-coverage"
 
@@ -160,7 +161,7 @@ def main(output_dir=OUTPUT):
     inputs = (
         companion.DEFAULT_INPUT,
         Path(__file__),
-        Path(replay.__file__),
+        *ENGINE_FILES,
         Path(pilot.__file__),
         Path(companion.__file__),
     )
