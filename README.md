@@ -126,7 +126,7 @@ The package's `__all__` lists the engine's public names, so `from auction_replay
 | `src/auction_replay/build_draft_day.py` | The builder for the draft-day budget worksheet |
 | `src/auction_replay/import_yahoo_snapshot.py` | The offline importer for saved Yahoo settings and draft results |
 | `src/auction_replay/analyze_2025_draft.py` | An audit of the 196-row auction CSV that prints salary bands |
-| `src/auction_replay/companion_state_probe.py` | A check of cash conservation at all 182 sale states |
+| `src/auction_replay/companion_state_probe.py` | A check, at all 182 sale states, of cash conservation and of accepted purchases that the optimizer's roster policy rejects |
 | `tests/` | Standard-library checks, including the brute-force oracle and the no-leakage test |
 | `templates/` | HTML templates for the decision explorer and the draft-day worksheet |
 | `examples/synthetic/` | A made-up 4-team league that the quickstart replays |
