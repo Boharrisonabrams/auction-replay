@@ -1,48 +1,69 @@
 """Runnable check: buy useful bye coverage without changing the starting core."""
-from dataclasses import replace
-from decimal import Decimal
+
 import json
+import sys
 import tempfile
 import unittest
-from unittest.mock import patch
-
-import sys
+from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 # Run from a checkout without installing: put src/ on the import path.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from auction_replay import replay_auction as replay  # noqa: E402
 from auction_replay import bench_coverage as bench  # noqa: E402
+from auction_replay import replay_auction as replay  # noqa: E402
 
 
 def check():
     rules = replace(replay.LeagueRules(), roster_size=4, starters=("QB", "WR", "FLEX"))
-    players = {key: replay.Player(key, key, pos, "NFL", bye, Decimal(points))
-               for key, pos, bye, points in [
-                   ("q", "QB", 7, 340), ("w", "WR", 8, 170),
-                   ("r", "RB", 9, 170), ("filler", "QB", 7, 0),
-                   ("backup", "QB", 8, 170), ("same_bye", "QB", 7, 200),
-                   ("expensive", "QB", 8, 300), ("flex", "TE", 10, 60)]}
+    players = {
+        key: replay.Player(key, key, pos, "NFL", bye, Decimal(points))
+        for key, pos, bye, points in [
+            ("q", "QB", 7, 340),
+            ("w", "WR", 8, 170),
+            ("r", "RB", 9, 170),
+            ("filler", "QB", 7, 0),
+            ("backup", "QB", 8, 170),
+            ("same_bye", "QB", 7, 200),
+            ("expensive", "QB", 8, 300),
+            ("flex", "TE", 10, 60),
+        ]
+    }
     prices = dict(q=1, w=1, r=1, filler=1, backup=2, same_bye=2, expensive=20, flex=2)
     seed = ("q", "w", "r", "filler")
     fixed = ("q",)
     candidates = set(players) - set(fixed)
     before = replay.projected_total(seed, players, rules)
-    with patch.object(bench.pilot, "load_outcomes", side_effect=AssertionError("future outcomes read")):
+    with patch.object(
+        bench.pilot, "load_outcomes", side_effect=AssertionError("future outcomes read")
+    ):
         got = bench.improve_bench(seed, fixed, candidates, prices, players, rules, 4)
     assert set(got["roster"]) == {"q", "w", "r", "backup"}, got
     assert Decimal(got["projected_points"]) == before + 10
     assert got["cost"] == 4 and len(got["swaps"]) == 1
     assert set(got["protected"]) == {"q", "w", "r"}
-    assert got == bench.improve_bench(seed, fixed, reversed(sorted(candidates)), prices, players, rules, 4)
+    assert got == bench.improve_bench(
+        seed, fixed, reversed(sorted(candidates)), prices, players, rules, 4
+    )
     pair = dict(seed=dict(roster=seed), repaired=got)
-    record = dict(pick=1, player_id="w", price_factor="1", probe_price=1,
-                  disposition="evaluated", buy=pair, **{"pass": pair})
+    record = dict(
+        pick=1,
+        player_id="w",
+        price_factor="1",
+        probe_price=1,
+        disposition="evaluated",
+        buy=pair,
+        **{"pass": pair},
+    )
     actual = {(p, w): Decimal(2) for p in players for w in range(1, 18)}
     with patch.object(bench.pilot, "load_outcomes", return_value=(actual, actual, {})):
         evaluated, _ = bench.evaluate([record], players, rules, {})
-    assert evaluated[0]["buy"]["repaired"]["core"]["points"] > evaluated[0]["buy"]["seed"]["core"]["points"]
+    assert (
+        evaluated[0]["buy"]["repaired"]["core"]["points"]
+        > evaluated[0]["buy"]["seed"]["core"]["points"]
+    )
     actual.pop(("backup", 7))
     with patch.object(bench.pilot, "load_outcomes", return_value=(actual, actual, {})):
         missing, _ = bench.evaluate([record], players, rules, {})
@@ -83,18 +104,24 @@ def check():
                     frozen_path.write_text("changed during evaluation")
                 return [], {}
 
-            with patch.object(bench.pilot, "load_pilot", return_value=((), rules, players, {}, {}, {})), \
-                 patch.object(bench.companion, "DEFAULT_INPUT", source), \
-                 patch.object(bench.companion, "build_payload"), \
-                 patch.object(bench, "study", return_value=[]), \
-                 patch.object(bench, "evaluate", side_effect=outcomes):
+            with (
+                patch.object(
+                    bench.pilot, "load_pilot", return_value=((), rules, players, {}, {}, {})
+                ),
+                patch.object(bench.companion, "DEFAULT_INPUT", source),
+                patch.object(bench.companion, "build_payload"),
+                patch.object(bench, "study", return_value=[]),
+                patch.object(bench, "evaluate", side_effect=outcomes),
+            ):
                 try:
                     bench.main(output)
                 except replay.InputError as error:
                     assert mutate and "frozen bench rosters changed" in str(error)
                 else:
                     assert not mutate
-                    assert json.loads((output / "evaluation.json").read_text())["roster_sha256"] == replay._file_hash(frozen_path)
+                    assert json.loads((output / "evaluation.json").read_text())[
+                        "roster_sha256"
+                    ] == replay._file_hash(frozen_path)
                 assert (output / "evaluation.json").exists() == (not mutate)
     print("Bench coverage, cash, fixed players, FLEX, determinism, input, and freeze checks passed")
 

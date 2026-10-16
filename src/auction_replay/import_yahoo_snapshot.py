@@ -12,6 +12,7 @@ import re
 import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from .replay_auction import InputError, _decimal, _integer, _rows, _text, _timestamp
 
@@ -43,7 +44,10 @@ def _league(document, league_key, season):
     if not isinstance(league, list) or len(league) < 2:
         raise InputError("expected a raw Yahoo league response with metadata and a subresource")
     metadata = _object(league[0], "league metadata")
-    if metadata.get("league_key") != league_key or str(metadata.get("league_id")) != league_key.split(".")[-1]:
+    if (
+        metadata.get("league_key") != league_key
+        or str(metadata.get("league_id")) != league_key.split(".")[-1]
+    ):
         raise InputError("league identity does not match requested league")
     if _integer(metadata.get("season"), "season", 2000) != season:
         raise InputError("season does not match requested season")
@@ -51,7 +55,7 @@ def _league(document, league_key, season):
         raise InputError("this importer requires an NFL league")
     if metadata.get("draft_status") != "postdraft":
         raise InputError("a completed draft is required for this historical importer")
-    combined = {}
+    combined: dict[str, Any] = {}
     for part in league[1:]:
         part = _object(part, "league subresource")
         if combined.keys() & part.keys():
@@ -63,7 +67,7 @@ def _league(document, league_key, season):
 def _settings(raw):
     if not isinstance(raw, list) or not raw:
         raise InputError("settings must be a nonempty list")
-    settings = {}
+    settings: dict[str, Any] = {}
     for part in raw:
         part = _object(part, "settings")
         if settings.keys() & part.keys():
@@ -80,28 +84,43 @@ def _settings(raw):
     if not positions:
         raise InputError("missing roster positions")
     categories = {}
-    for row in _wrapped_list(_object(settings.get("stat_categories"), "stat_categories").get("stats"), "stat"):
+    for row in _wrapped_list(
+        _object(settings.get("stat_categories"), "stat_categories").get("stats"), "stat"
+    ):
         stat_id = str(_integer(row.get("stat_id"), "stat_id"))
         if stat_id in categories:
             raise InputError("duplicate stat category")
         categories[stat_id] = row
     scoring, seen = [], set()
-    for row in _wrapped_list(_object(settings.get("stat_modifiers"), "stat_modifiers").get("stats"), "stat"):
+    for row in _wrapped_list(
+        _object(settings.get("stat_modifiers"), "stat_modifiers").get("stats"), "stat"
+    ):
         stat_id = str(_integer(row.get("stat_id"), "stat_id"))
         if stat_id not in categories or stat_id in seen:
             raise InputError("missing or duplicate stat category for modifier")
         seen.add(stat_id)
         category = categories[stat_id]
-        scoring.append({"stat_id": stat_id, "name": _text(category.get("name"), "stat name"),
-                        "value": str(_decimal(row.get("value"), "scoring value")),
-                        "has_bonuses": bool(row.get("bonuses")),
-                        "enabled": None if "enabled" not in category else _integer(category["enabled"], "stat enabled", 0, 1)})
+        scoring.append(
+            {
+                "stat_id": stat_id,
+                "name": _text(category.get("name"), "stat name"),
+                "value": str(_decimal(row.get("value"), "scoring value")),
+                "has_bonuses": bool(row.get("bonuses")),
+                "enabled": None
+                if "enabled" not in category
+                else _integer(category["enabled"], "stat enabled", 0, 1),
+            }
+        )
     if not scoring:
         raise InputError("missing scoring modifiers")
-    return {"is_auction_draft": True, "scoring_type": _text(settings.get("scoring_type"), "scoring_type"),
-            "roster_positions": positions, "scoring": scoring,
-            "unmapped_category_ids": sorted(set(categories) - seen),
-            "scoring_complete": False}
+    return {
+        "is_auction_draft": True,
+        "scoring_type": _text(settings.get("scoring_type"), "scoring_type"),
+        "roster_positions": positions,
+        "scoring": scoring,
+        "unmapped_category_ids": sorted(set(categories) - seen),
+        "scoring_complete": False,
+    }
 
 
 def import_snapshot(settings_document, draft_document, *, league_key, season, source_kind):
@@ -136,27 +155,48 @@ def import_snapshot(settings_document, draft_document, *, league_key, season, so
             raise InputError("duplicate player in draft results")
         players.add(player_key)
         owner_keys.add(team_key)
-        draft.append({"pick": _integer(row.get("pick"), "pick", 1),
-                      "player_key": player_key, "player_id": player_key.split(".")[-1],
-                      "team_key": team_key,
-                      "cost": None if row.get("cost") is None else _integer(row["cost"], "cost"),
-                      # Keeper placement and $0 costs cannot establish keeper status.
-                      "keeper": None})
+        draft.append(
+            {
+                "pick": _integer(row.get("pick"), "pick", 1),
+                "player_key": player_key,
+                "player_id": player_key.split(".")[-1],
+                "team_key": team_key,
+                "cost": None if row.get("cost") is None else _integer(row["cost"], "cost"),
+                # Keeper placement and $0 costs cannot establish keeper status.
+                "keeper": None,
+            }
+        )
     draft.sort(key=lambda row: row["pick"])
     if [row["pick"] for row in draft] != list(range(1, count + 1)):
         raise InputError("draft pick sequence must be contiguous and unique")
     if len(owner_keys) > teams:
         raise InputError("draft includes more teams than league metadata")
-    return {"source_kind": source_kind, "authenticated_access_verified": False, "replay_ready": False,
-            "league": {"league_key": league_key, "season": season, "game_code": "nfl", "num_teams": teams},
-            "settings": settings, "draft": draft,
-            "summary": {"selections": count, "known_spend": sum(row["cost"] or 0 for row in draft),
-                        "missing_costs": sum(row["cost"] is None for row in draft), "unknown_keepers": count},
-            "limitations": ["Local files do not verify current Yahoo access.",
-                            "Keeper status, starting budget, and owner identities require separate verification.",
-                            "Scoring IDs and bonuses require mapping and reconciliation before replay use.",
-                            "Completed purchases do not include losing bids or live nomination state.",
-                            "Pre-draft projections and weekly outcomes are separate inputs."]}
+    return {
+        "source_kind": source_kind,
+        "authenticated_access_verified": False,
+        "replay_ready": False,
+        "league": {
+            "league_key": league_key,
+            "season": season,
+            "game_code": "nfl",
+            "num_teams": teams,
+        },
+        "settings": settings,
+        "draft": draft,
+        "summary": {
+            "selections": count,
+            "known_spend": sum(row["cost"] or 0 for row in draft),
+            "missing_costs": sum(row["cost"] is None for row in draft),
+            "unknown_keepers": count,
+        },
+        "limitations": [
+            "Local files do not verify current Yahoo access.",
+            "Keeper status, starting budget, and owner identities require separate verification.",
+            "Scoring IDs and bonuses require mapping and reconciliation before replay use.",
+            "Completed purchases do not include losing bids or live nomination state.",
+            "Pre-draft projections and weekly outcomes are separate inputs.",
+        ],
+    }
 
 
 def reconcile(draft, auction_path):
@@ -166,18 +206,36 @@ def reconcile(draft, auction_path):
         player_id = _text(row["id"], "player ID")
         if player_id in expected:
             raise InputError("duplicate expected player ID")
-        expected[player_id] = {"pick": _integer(row["pick"], "expected pick", 1),
-                               "cost": _integer(row["salary"], "expected cost")}
+        expected[player_id] = {
+            "pick": _integer(row["pick"], "expected pick", 1),
+            "cost": _integer(row["salary"], "expected cost"),
+        }
     actual = {row["player_id"]: row for row in draft}
     matched = expected.keys() & actual.keys()
-    differences = [{"player_id": pid, "field": field, "expected": expected[pid][field], "actual": actual[pid][field]}
-                   for pid in sorted(matched) for field in ["pick", "cost"]
-                   if expected[pid][field] != actual[pid][field]]
-    missing, extra = sorted(expected.keys() - actual.keys()), sorted(actual.keys() - expected.keys())
-    return {"prices_and_order_match": not differences and not missing and not extra,
-            "ownership_verified": False, "keepers_verified": False,
-            "matched_player_ids": len(matched),
-            "missing_player_ids": missing, "extra_player_ids": extra, "differences": differences}
+    differences = [
+        {
+            "player_id": pid,
+            "field": field,
+            "expected": expected[pid][field],
+            "actual": actual[pid][field],
+        }
+        for pid in sorted(matched)
+        for field in ["pick", "cost"]
+        if expected[pid][field] != actual[pid][field]
+    ]
+    missing, extra = (
+        sorted(expected.keys() - actual.keys()),
+        sorted(actual.keys() - expected.keys()),
+    )
+    return {
+        "prices_and_order_match": not differences and not missing and not extra,
+        "ownership_verified": False,
+        "keepers_verified": False,
+        "matched_player_ids": len(matched),
+        "missing_player_ids": missing,
+        "extra_player_ids": extra,
+        "differences": differences,
+    }
 
 
 def main(argv=None):
@@ -201,14 +259,21 @@ def main(argv=None):
         for label, path in source_paths.items():
             content = path.read_bytes()
             documents.append(json.loads(content, object_pairs_hook=_unique_object))
-            sources[label] = {"sha256": hashlib.sha256(content).hexdigest(), "captured_at": args.captured_at}
-        result = import_snapshot(*documents, league_key=args.league_key, season=args.season, source_kind=args.source_kind)
+            sources[label] = {
+                "sha256": hashlib.sha256(content).hexdigest(),
+                "captured_at": args.captured_at,
+            }
+        result = import_snapshot(
+            *documents, league_key=args.league_key, season=args.season, source_kind=args.source_kind
+        )
         result["sources"] = sources
         if args.expected_auction:
             result["reconciliation"] = reconcile(result["draft"], args.expected_auction)
         rendered = json.dumps(result, indent=2, allow_nan=False) + "\n"
         # Finish rendering and validation before replacing a previous snapshot.
-        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=output.parent, delete=False) as temp:
+        with NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=output.parent, delete=False
+        ) as temp:
             temporary = Path(temp.name)
             try:
                 temp.write(rendered)
@@ -218,12 +283,24 @@ def main(argv=None):
                 temporary.unlink(missing_ok=True)
     except (InputError, OSError, ValueError, TypeError) as error:
         # Print the error class, not untrusted response bodies or credential data.
-        print(f"Snapshot import failed ({type(error).__name__}); previous output preserved.", file=sys.stderr)
+        print(
+            f"Snapshot import failed ({type(error).__name__}); previous output preserved.",
+            file=sys.stderr,
+        )
         return 2
     # The file is the deliverable; a closed status pipe cannot undo a saved import.
     try:
-        print(json.dumps({"imported": result["summary"]["selections"], "source_kind": args.source_kind,
-                          "replay_ready": False, "authenticated_access_verified": False}), flush=True)
+        print(
+            json.dumps(
+                {
+                    "imported": result["summary"]["selections"],
+                    "source_kind": args.source_kind,
+                    "replay_ready": False,
+                    "authenticated_access_verified": False,
+                }
+            ),
+            flush=True,
+        )
     except OSError:
         pass
     return 0

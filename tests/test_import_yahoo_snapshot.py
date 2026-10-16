@@ -6,12 +6,11 @@ Synthetic Yahoo-shaped responses test parsing, not authenticated API access.
 import copy
 import csv
 import json
+import sys
 import tempfile
 import unittest
-from unittest.mock import patch
-
-import sys
 from pathlib import Path
+from unittest.mock import patch
 
 # Run from a checkout without installing: put src/ on the import path.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -20,23 +19,48 @@ from auction_replay.import_yahoo_snapshot import InputError, import_snapshot, ma
 
 
 def sample():
-    metadata = {"league_key": "999.l.123", "league_id": "123", "game_code": "nfl",
-                "season": "2025", "num_teams": 2, "draft_status": "postdraft"}
-    settings = {"is_auction_draft": "1", "scoring_type": "headpoint",
-                "roster_positions": [{"roster_position": {"position": "QB", "count": 1}},
-                                     {"roster_position": {"position": "BN", "count": "1"}}],
-                "stat_categories": {"stats": [{"stat": {"stat_id": 4, "name": "Passing Touchdowns", "enabled": "1"}}]},
-                "stat_modifiers": {"stats": [{"stat": {"stat_id": 4, "value": "6"}}]}}
-    rows = [{"pick": 1, "round": 1, "player_key": "999.p.10", "team_key": "999.l.123.t.1", "cost": "70"},
-            {"pick": 2, "round": 1, "player_key": "999.p.11", "team_key": "999.l.123.t.2", "cost": "0"}]
+    metadata = {
+        "league_key": "999.l.123",
+        "league_id": "123",
+        "game_code": "nfl",
+        "season": "2025",
+        "num_teams": 2,
+        "draft_status": "postdraft",
+    }
+    settings = {
+        "is_auction_draft": "1",
+        "scoring_type": "headpoint",
+        "roster_positions": [
+            {"roster_position": {"position": "QB", "count": 1}},
+            {"roster_position": {"position": "BN", "count": "1"}},
+        ],
+        "stat_categories": {
+            "stats": [{"stat": {"stat_id": 4, "name": "Passing Touchdowns", "enabled": "1"}}]
+        },
+        "stat_modifiers": {"stats": [{"stat": {"stat_id": 4, "value": "6"}}]},
+    }
+    rows = [
+        {
+            "pick": 1,
+            "round": 1,
+            "player_key": "999.p.10",
+            "team_key": "999.l.123.t.1",
+            "cost": "70",
+        },
+        {"pick": 2, "round": 1, "player_key": "999.p.11", "team_key": "999.l.123.t.2", "cost": "0"},
+    ]
     draft = {str(i): {"draft_result": row} for i, row in enumerate(rows)}
     draft["count"] = 2
-    return ({"fantasy_content": {"league": [copy.deepcopy(metadata), {"settings": [settings]}]}},
-            {"fantasy_content": {"league": [copy.deepcopy(metadata), {"draft_results": draft}]}})
+    return (
+        {"fantasy_content": {"league": [copy.deepcopy(metadata), {"settings": [settings]}]}},
+        {"fantasy_content": {"league": [copy.deepcopy(metadata), {"draft_results": draft}]}},
+    )
 
 
 def parse(settings, draft):
-    return import_snapshot(settings, draft, league_key="999.l.123", season=2025, source_kind="sample")
+    return import_snapshot(
+        settings, draft, league_key="999.l.123", season=2025, source_kind="sample"
+    )
 
 
 def rejected(change, fragment):
@@ -65,16 +89,51 @@ def run():
     del draft["fantasy_content"]["league"][1]["draft_results"]["0"]["draft_result"]["cost"]
     result = parse(settings, draft)
     assert result["draft"][0]["cost"] is None and result["summary"]["missing_costs"] == 1
-    rejected(lambda s, d: d["fantasy_content"]["league"][0].update(league_key="999.l.456"), "league identity")
+    rejected(
+        lambda s, d: d["fantasy_content"]["league"][0].update(league_key="999.l.456"),
+        "league identity",
+    )
     rejected(lambda s, d: d["fantasy_content"]["league"][0].update(season="2024"), "season")
     rejected(lambda s, d: s["fantasy_content"]["league"][0].update(game_code="nhl"), "NFL")
-    rejected(lambda s, d: d["fantasy_content"]["league"][1]["draft_results"].update(count=3), "count")
-    rejected(lambda s, d: d["fantasy_content"]["league"][1]["draft_results"]["1"]["draft_result"].update(player_key="999.p.10"), "duplicate player")
-    rejected(lambda s, d: d["fantasy_content"]["league"][1]["draft_results"]["1"]["draft_result"].update(team_key="999.l.456.t.2"), "team key")
-    rejected(lambda s, d: d["fantasy_content"]["league"][1]["draft_results"]["1"]["draft_result"].update(player_key="998.p.11"), "player key")
-    rejected(lambda s, d: d["fantasy_content"]["league"][1]["draft_results"]["0"]["draft_result"].update(cost=-1), "cost")
-    rejected(lambda s, d: s["fantasy_content"]["league"][1]["settings"][0]["stat_modifiers"]["stats"][0]["stat"].update(value="NaN"), "finite")
-    rejected(lambda s, d: s["fantasy_content"]["league"][1]["settings"][0]["stat_modifiers"]["stats"][0]["stat"].update(stat_id=99), "stat category")
+    rejected(
+        lambda s, d: d["fantasy_content"]["league"][1]["draft_results"].update(count=3), "count"
+    )
+    rejected(
+        lambda s, d: d["fantasy_content"]["league"][1]["draft_results"]["1"]["draft_result"].update(
+            player_key="999.p.10"
+        ),
+        "duplicate player",
+    )
+    rejected(
+        lambda s, d: d["fantasy_content"]["league"][1]["draft_results"]["1"]["draft_result"].update(
+            team_key="999.l.456.t.2"
+        ),
+        "team key",
+    )
+    rejected(
+        lambda s, d: d["fantasy_content"]["league"][1]["draft_results"]["1"]["draft_result"].update(
+            player_key="998.p.11"
+        ),
+        "player key",
+    )
+    rejected(
+        lambda s, d: d["fantasy_content"]["league"][1]["draft_results"]["0"]["draft_result"].update(
+            cost=-1
+        ),
+        "cost",
+    )
+    rejected(
+        lambda s, d: s["fantasy_content"]["league"][1]["settings"][0]["stat_modifiers"]["stats"][0][
+            "stat"
+        ].update(value="NaN"),
+        "finite",
+    )
+    rejected(
+        lambda s, d: s["fantasy_content"]["league"][1]["settings"][0]["stat_modifiers"]["stats"][0][
+            "stat"
+        ].update(stat_id=99),
+        "stat category",
+    )
     settings, draft = sample()
     for response in [settings, draft]:
         response["fantasy_content"]["league"][0]["num_teams"] = 1
@@ -90,8 +149,12 @@ def run():
         with expected.open("w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=["id", "pick", "salary", "points"])
             writer.writeheader()
-            writer.writerows([{"id": "10", "pick": "1", "salary": "70", "points": "9999"},
-                              {"id": "11", "pick": "2", "salary": "0", "points": "0"}])
+            writer.writerows(
+                [
+                    {"id": "10", "pick": "1", "salary": "70", "points": "9999"},
+                    {"id": "11", "pick": "2", "salary": "0", "points": "0"},
+                ]
+            )
         settings, draft = sample()
         result = parse(settings, draft)
         comparison = reconcile(result["draft"], expected)
@@ -107,12 +170,31 @@ def run():
         assert mismatch["missing_player_ids"] == ["10"] and mismatch["extra_player_ids"] == ["99"]
         result["draft"][0]["cost"] = 71
         assert reconcile(result["draft"], expected)["differences"][0]["field"] == "cost"
-        settings_path, draft_path, output_path = root / "settings.json", root / "draft.json", root / "import.json"
+        settings_path, draft_path, output_path = (
+            root / "settings.json",
+            root / "draft.json",
+            root / "import.json",
+        )
         settings_path.write_text(json.dumps(settings))
         draft_path.write_text(json.dumps(draft))
-        args = ["--settings", str(settings_path), "--draft", str(draft_path), "--league-key", "999.l.123",
-                "--season", "2025", "--source-kind", "sample", "--captured-at", "2026-09-05T00:00:00Z",
-                "--output", str(output_path), "--expected-auction", str(expected)]
+        args = [
+            "--settings",
+            str(settings_path),
+            "--draft",
+            str(draft_path),
+            "--league-key",
+            "999.l.123",
+            "--season",
+            "2025",
+            "--source-kind",
+            "sample",
+            "--captured-at",
+            "2026-09-05T00:00:00Z",
+            "--output",
+            str(output_path),
+            "--expected-auction",
+            str(expected),
+        ]
         assert main(args) == 0
         before = output_path.read_bytes()
         saved = json.loads(before)

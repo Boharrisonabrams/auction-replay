@@ -29,3 +29,42 @@ where = ["src"]
 # Each test file also runs on its own, for example: python3 -B tests/test_replay_auction.py
 # The modules resolve data/local/, docs/research/, and templates/ relative to the checkout,
 # so run them from a clone (PYTHONPATH=src, or an editable install), not from a built wheel.
+
+# Development tools only. Runtime dependencies above stay empty.
+[dependency-groups]
+dev = ["ruff", "mypy"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+# Each ignore below covers code that predates this config. New files get every rule.
+# E501: ruff format wraps code; the remaining long lines are string literals and comments.
+# B905: zip(strict=True) would change runtime behavior, so it needs its own review.
+# B023: each flagged closure runs inside the loop iteration that defines it.
+# B008: LeagueRules is a frozen dataclass, so one shared default instance is safe.
+# E731 and B007: short lambda helpers and a descriptive unused loop name, kept as written.
+[tool.ruff.lint.per-file-ignores]
+"src/auction_replay/bench_coverage.py" = ["E501"]
+"src/auction_replay/build_draft_companion.py" = ["E501"]
+"src/auction_replay/build_draft_day.py" = ["B905"]
+"src/auction_replay/historical_price_pilot.py" = ["B023", "E501", "E731"]
+"src/auction_replay/replay_auction.py" = ["B008", "B905", "E501", "E731"]
+"tests/*.py" = ["B007", "B023", "B905", "E501", "E731"]
+
+[tool.mypy]
+python_version = "3.11"
+# No function carries annotations yet, so check_untyped_defs is what makes mypy read
+# function bodies. allow_redefinition accepts names that are reused for a new type,
+# such as a loop variable.
+check_untyped_defs = true
+allow_redefinition = true
+strict_equality = true
+extra_checks = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unused_configs = true
+warn_unreachable = true
