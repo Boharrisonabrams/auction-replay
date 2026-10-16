@@ -4,12 +4,14 @@ The other modules, the tests, and the console scripts reach the replay engine th
 replay_auction. These checks pin that contract: the names it provides, what patching one
 of them does, every console script target, and the decisions for the synthetic league.
 They also check that the code hashes cover every module of the engine, not only
-replay_auction.py.
+replay_auction.py, and that the package's __all__ names the same engine objects.
 
 Run from the repository root: python3 -B tests/test_replay_compatibility.py
 """
 
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import tomllib
@@ -28,6 +30,7 @@ SYNTHETIC = ROOT / "examples" / "synthetic"
 # Run from a checkout without installing: put src/ on the import path.
 sys.path.insert(0, str(ROOT / "src"))
 
+import auction_replay  # noqa: E402
 from auction_replay import benchmark  # noqa: E402
 from auction_replay import historical_price_pilot as pilot  # noqa: E402
 from auction_replay import replay_auction as replay  # noqa: E402
@@ -162,6 +165,39 @@ class EngineHashChecks(unittest.TestCase):
                 ):
                     self.assertNotEqual(benchmark.implementation_hash(), baseline)
         self.assertEqual(benchmark.implementation_hash(), baseline)
+
+
+class PackageApiChecks(unittest.TestCase):
+    def test_package_names_are_the_engine_objects(self):
+        self.assertEqual(len(auction_replay.__all__), len(set(auction_replay.__all__)))
+        shared = {name for name in replay.__all__ if name != "main"}
+        self.assertLessEqual(shared, set(auction_replay.__all__))
+        for name in shared:
+            with self.subTest(name=name):
+                self.assertIs(getattr(auction_replay, name), getattr(replay, name))
+        # The parsing helpers are public in the package and keep their old names here.
+        for public, private in (
+            ("text", "_text"),
+            ("integer", "_integer"),
+            ("decimal", "_decimal"),
+            ("timestamp", "_timestamp"),
+            ("json_object", "_json"),
+            ("rows", "_rows"),
+        ):
+            with self.subTest(name=public):
+                self.assertIs(getattr(auction_replay, public), getattr(replay, private))
+
+    def test_the_command_line_entry_point_runs_without_warnings(self):
+        result = subprocess.run(
+            [sys.executable, "-B", "-W", "error", "-m", "auction_replay.replay_auction", "--help"],
+            cwd=ROOT,
+            env=dict(os.environ, PYTHONPATH=str(ROOT / "src")),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        self.assertIn("--work-limit", result.stdout)
 
 
 if __name__ == "__main__":
