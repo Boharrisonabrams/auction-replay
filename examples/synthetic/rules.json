@@ -1,0 +1,27 @@
+{
+  "season": 2025,
+  "draft_at": "2025-09-01T19:00:00-07:00",
+  "teams": 4,
+  "budget": 30,
+  "roster_size": 5,
+  "starters": [
+    "QB",
+    "RB",
+    "WR",
+    "FLEX"
+  ],
+  "first_week": 1,
+  "last_week": 17,
+  "scoring": {
+    "passing_yards": "0.04",
+    "passing_touchdowns": "4",
+    "interceptions": "-2",
+    "rushing_yards": "0.1",
+    "receiving_yards": "0.1",
+    "receptions": "0.5",
+    "rushing_touchdowns": "6",
+    "receiving_touchdowns": "6",
+    "fumbles_lost": "-2"
+  },
+  "scoring_complete": true
+}
