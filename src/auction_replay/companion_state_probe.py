@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 from . import replay_auction as replay
+from .benchmark import ENGINE_FILES
 
 if __name__ == "__main__":
     auction = (
@@ -66,7 +67,7 @@ if __name__ == "__main__":
                 evidence="Offline 2025 observed sales; no live platform-cap verification",
                 inputs_sha256={
                     path.name: hashlib.sha256(path.read_bytes()).hexdigest()
-                    for path in (auction, Path(replay.__file__), Path(__file__))
+                    for path in (auction, *ENGINE_FILES, Path(__file__))
                 },
                 sale_states_checked=len(moments),
                 keeper_cost=keeper_cost,

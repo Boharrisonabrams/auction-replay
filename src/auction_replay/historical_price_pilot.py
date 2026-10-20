@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from . import replay_auction as replay
+from .benchmark import ENGINE_FILES
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
@@ -398,7 +399,7 @@ def make_joint_metadata(
         inputs_sha256=hashlib.sha256(
             replay.canonical_bytes(dict(rules=rules, players=players, weights=weights))
         ).hexdigest(),
-        code_hashes={p.name: replay._file_hash(p) for p in (Path(__file__), Path(replay.__file__))},
+        code_hashes={p.name: replay._file_hash(p) for p in (Path(__file__), *ENGINE_FILES)},
         source_hashes=policy_source_hashes() if source_hashes is None else source_hashes,
     )
 

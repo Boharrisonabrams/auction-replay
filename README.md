@@ -47,7 +47,7 @@ To run the full test suite, run this command from the repository root:
 python3 -B -m unittest discover -s tests
 ```
 
-The suite runs 13 tests in under 10 seconds, including one that runs the quickstart. Two tests also need Node.js, because they run the browser-side calculation code; without Node.js, those two tests are skipped. Each test file also runs on its own, for example `python3 -B tests/test_replay_auction.py`.
+The suite runs 22 tests in about 10 seconds, including one that runs the quickstart. Two tests also need Node.js, because they run the browser-side calculation code; without Node.js, those two tests are skipped. Each test file also runs on its own, for example `python3 -B tests/test_replay_auction.py`.
 
 To run a module, put `src/` on the path:
 
@@ -97,15 +97,36 @@ Coding agents did the rest under that direction, using the Compound Engineering 
 - **No held-out season.** 2025 informed the model choices, so it cannot also validate them.
 - **Forecast provenance is weak.** Forecast pages were retrieved in 2026 with publisher-claimed preseason dates. Nobody archived them before the draft.
 - **The pilots simplify scoring.** They exclude kicker and defense points and some offensive scoring components.
-- **The code is research-grade.** `replay_auction.py` is one module of about 1,560 lines, and other modules import its private helpers. `build_draft_day.py` packs statements onto single lines and hardcodes Bo's 2026 draft targets. There is no linter, formatter, or CI.
+- **The code is research-grade.** The replay engine is now split into focused modules, but the pilots, the decision explorer builder, and the bench study still call underscore helpers through `replay_auction`. `build_draft_day.py` packs statements onto single lines and hardcodes Bo's 2026 draft targets. There is no linter, formatter, or CI.
 - **Names are pseudonymized.** The 12 named opponent teams are Team A to Team L, Bo's team is Team Bo, and one team keeps the `n/a` label that the Yahoo export recorded. SHA-256 values recorded in the reports describe the original private files.
 - **Some outputs can still carry private details.** If you regenerate a report with private inputs, error messages can include absolute paths, and a `rules.json` with a `source_url` prints that league link.
 
 ## Repository map
 
-| Path | Contents |
+The replay engine is in `src/auction_replay/`. To follow it, start with `inputs.py` and read the engine modules in this order. Each module uses only the modules above it.
+
+| Engine module | What it holds | Start with |
+| --- | --- | --- |
+| `inputs.py` | League rules, auction pick and player records, `InputError`, and the checked parsing helpers | `LeagueRules` |
+| `loaders.py` | Loaders for the rules, the auction CSV, and the normalized sources, each checked against its manifest | `load_auction`, then `validate_manifest` |
+| `state.py` | The observed auction, replayed sale by sale: team budgets, rosters, and legal bid capacity | `replay_states`, then `legal_capacity` |
+| `pricing.py` | Reference, inflation, and future prices, built from earlier sales only | `replay_markets` |
+| `search.py` | Roster bounds for every budget, and the buy-versus-pass comparison at each legal price | `compare_nominee`, then `completion_frontier` |
+| `decisions.py` | One decision row per team, nomination, legal price, and scenario, and scoring for frozen rosters | `decision_rows` |
+| `benchmark.py` | The full run: freeze and hash the recommendations, evaluate them, and write the CSV and report | `run_benchmark` |
+| `replay_auction.py` | The command-line entry point and the original import path, which re-exports every engine name | The module docstring, which describes the input files |
+
+The package's `__all__` lists the engine's public names, so `from auction_replay import compare_nominee` works.
+
+| Other path | Contents |
 | --- | --- |
-| `src/auction_replay/` | Replay engine, pilots, decision explorer and worksheet builders, offline Yahoo importer |
+| `src/auction_replay/historical_price_pilot.py` | The exploratory 2025 price pilots, in fixed-starter and joint-weekly modes |
+| `src/auction_replay/build_draft_companion.py` | The builder for the offline decision explorer |
+| `src/auction_replay/bench_coverage.py` | A study of affordable bye coverage from frozen roster seeds |
+| `src/auction_replay/build_draft_day.py` | The builder for the draft-day budget worksheet |
+| `src/auction_replay/import_yahoo_snapshot.py` | The offline importer for saved Yahoo settings and draft results |
+| `src/auction_replay/analyze_2025_draft.py` | An audit of the 196-row auction CSV that prints salary bands |
+| `src/auction_replay/companion_state_probe.py` | A check, at all 182 sale states, of cash conservation and of accepted purchases that the optimizer's roster policy rejects |
 | `tests/` | Standard-library checks, including the brute-force oracle and the no-leakage test |
 | `templates/` | HTML templates for the decision explorer and the draft-day worksheet |
 | `examples/synthetic/` | A made-up 4-team league that the quickstart replays |
