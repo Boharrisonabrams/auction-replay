@@ -47,7 +47,7 @@ To run the full test suite, run this command from the repository root:
 python3 -B -m unittest discover -s tests
 ```
 
-The suite runs 22 tests in about 10 seconds, including one that runs the quickstart. Two tests also need Node.js, because they run the browser-side calculation code; without Node.js, those two tests are skipped. Each test file also runs on its own, for example `python3 -B tests/test_replay_auction.py`.
+The suite runs 22 tests in about 10 seconds, including one that runs the quickstart. GitHub Actions runs the same suite on Python 3.11, 3.12, and 3.13, after `ruff check .`, `ruff format --check .`, and `mypy src`; `pyproject.toml` holds the Ruff and mypy settings. Two tests also need Node.js, because they run the browser-side calculation code; without Node.js, those two tests are skipped. Each test file also runs on its own, for example `python3 -B tests/test_replay_auction.py`.
 
 To run a module, put `src/` on the path:
 
@@ -97,7 +97,7 @@ Coding agents did the rest under that direction, using the Compound Engineering 
 - **No held-out season.** 2025 informed the model choices, so it cannot also validate them.
 - **Forecast provenance is weak.** Forecast pages were retrieved in 2026 with publisher-claimed preseason dates. Nobody archived them before the draft.
 - **The pilots simplify scoring.** They exclude kicker and defense points and some offensive scoring components.
-- **The code is research-grade.** The replay engine is now split into focused modules, but the pilots, the decision explorer builder, and the bench study still call underscore helpers through `replay_auction`. `build_draft_day.py` packs statements onto single lines and hardcodes Bo's 2026 draft targets. There is no linter, formatter, or CI.
+- **The code is research-grade.** The replay engine is now split into focused modules, but the pilots, the decision explorer builder, and the bench study still call underscore helpers through `replay_auction`. `build_draft_day.py` packs statements onto single lines and hardcodes Bo's 2026 draft targets. Ruff, mypy, and a CI matrix now run on every push, but no function carries type annotations yet, so mypy checks only what it can infer.
 - **Names are pseudonymized.** The 12 named opponent teams are Team A to Team L, Bo's team is Team Bo, and one team keeps the `n/a` label that the Yahoo export recorded. SHA-256 values recorded in the reports describe the original private files.
 - **Some outputs can still carry private details.** If you regenerate a report with private inputs, error messages can include absolute paths, and a `rules.json` with a `source_url` prints that league link.
 
